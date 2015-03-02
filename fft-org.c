@@ -3,16 +3,16 @@
     fix_fft()       perform FFT or inverse FFT
     fix_mpy()       perform fixed-point multiplication.
     Sinewave[1024]  sinewave normalized to 32767 (= 1.0).
-    
+
     All data are fixed-point short integers, in which
     -32768 to +32768 represent -1.0 to +1.0. Integer arithmetic
     is used for speed, instead of the more natural floating-point.
-	
+
     For the forward FFT (time -> freq), fixed scaling is
     performed to prevent arithmetic overflow, and to map a 0dB
     sine/cosine wave (i.e. amplitude = 32767) to two -6dB freq
     coefficients; the one in the lower half is reported as 0dB.
-    
+
     For the inverse FFT (freq -> time), fixed scaling cannot be
     done, as two 0dB coefficients would sum to a peak amplitude of
     64K, overflowing the 32k range of the fixed-point integers.
@@ -44,11 +44,11 @@
 int fix_fft_org(fixed fr[], fixed fi[], int m, int inverse)
 {
     int mr,nn,i,j,l,k,istep, n, scale, shift;
-    
+
     fixed qr,qi;		//even input
     fixed tr,ti;		//odd input
     fixed wr,wi;		//twiddle factor
-    
+
     //number of input data
     n = 1<<m;
 
@@ -70,13 +70,13 @@ int fix_fft_org(fixed fr[], fixed fi[], int m, int inverse)
         tr = fr[m];
         fr[m] = fr[mr];
         fr[mr] = tr;
-        
+
         ti = fi[m];
         fi[m] = fi[mr];
         fi[mr] = ti;
     }
-	
-    
+
+
     l = 1;
     k = LOG2_N_WAVE-1;
     while(l < n)
@@ -89,10 +89,10 @@ int fix_fft_org(fixed fr[], fixed fi[], int m, int inverse)
             {
                 j = fr[i];
                 if(j < 0) j = -j;
-                
+
                 m = fi[i];
                 if(m < 0) m = -m;
-                
+
                 if(j > 16383 || m > 16383)
                 {
                     shift = 1;
@@ -109,7 +109,7 @@ int fix_fft_org(fixed fr[], fixed fi[], int m, int inverse)
                distributed to maximize arithmetic accuracy. */
             shift = 1;
         }
-        
+
         /* it may not be obvious, but the shift will be performed
            on each data point exactly once, during this pass. */
         istep = l << 1;		//step width of current butterfly
@@ -119,7 +119,7 @@ int fix_fft_org(fixed fr[], fixed fi[], int m, int inverse)
             /* 0 <= j < N_WAVE/2 */
             wr =  Sinewave[j+N_WAVE/4];
             wi = -Sinewave[j];
-            
+
             if(inverse) wi = -wi;
             if(shift)
             {
@@ -128,20 +128,20 @@ int fix_fft_org(fixed fr[], fixed fi[], int m, int inverse)
             }
             for(i=m; i<n; i+=istep)
             {
-            	
+
                 j = i + l;
                 tr = fix_mpy(wr,fr[j]) - fix_mpy(wi,fi[j]);
                 ti = fix_mpy(wr,fi[j]) + fix_mpy(wi,fr[j]);
-                
+
                 qr = fr[i];
                 qi = fi[i];
-                
+
                 if(shift)
                 {
                         qr >>= 1;
                         qi >>= 1;
                 }
-                
+
                 fr[j] = qr - tr;
                 fi[j] = qi - ti;
                 fr[i] = qr + tr;
@@ -300,7 +300,3 @@ fixed Sinewave_org[1024] = {
   -3211,  -3011,  -2811,  -2610,  -2410,  -2209,  -2009,  -1808,
   -1607,  -1406,  -1206,  -1005,   -804,   -603,   -402,   -201,
 };
-
-
-
-

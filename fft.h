@@ -1,4 +1,3 @@
-
 #ifndef FFT_H
 #define FFT_H
 
@@ -21,6 +20,5 @@ extern fixed Sinewave[N_WAVE];
 //function prototypes
 fixed fix_mpy(fixed a, fixed b);
 int fix_fft(fixed *fr, fixed *fi, int m, int inverse);
-
 
 #endif	//FFT_H
