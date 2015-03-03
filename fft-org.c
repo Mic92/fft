@@ -117,8 +117,8 @@ int fix_fft_org(fixed fr[], fixed fi[], int m, int inverse)
         {
             j = m << k;
             /* 0 <= j < N_WAVE/2 */
-            wr =  Sinewave[j+N_WAVE/4];
-            wi = -Sinewave[j];
+            wr =  Sinewave_org[j+N_WAVE/4];
+            wi = -Sinewave_org[j];
 
             if(inverse) wi = -wi;
             if(shift)
@@ -130,8 +130,8 @@ int fix_fft_org(fixed fr[], fixed fi[], int m, int inverse)
             {
 
                 j = i + l;
-                tr = fix_mpy(wr,fr[j]) - fix_mpy(wi,fi[j]);
-                ti = fix_mpy(wr,fi[j]) + fix_mpy(wi,fr[j]);
+                tr = fix_mpy_org(wr,fr[j]) - fix_mpy_org(wi,fi[j]);
+                ti = fix_mpy_org(wr,fi[j]) + fix_mpy_org(wi,fr[j]);
 
                 qr = fr[i];
                 qi = fi[i];

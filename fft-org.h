@@ -21,4 +21,4 @@ extern fixed Sinewave_org[N_WAVE];
 fixed fix_mpy_org(fixed a, fixed b);
 int fix_fft_org(fixed *fr, fixed *fi, int m, int inverse);
 
-#endif	//FFT_H
+#endif //FFT_H
