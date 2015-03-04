@@ -60,14 +60,11 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
     nn = n - 1;
     scale = 0;
     
+    int mm = m;
 
     /* decimation in time - re-order data */
     for(m=1; m<=nn; ++m) {
-        l = n;
-        do{
-        	l >>= 1;
-        }while(mr+l > nn);
-        mr = (mr & (l-1)) + l;
+        mr = FFT_bit_reverse(m, mm);
 
         if(mr <= m) continue;
         tr = fr[m];
@@ -119,22 +116,15 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         for(m=0; m<l; ++m)
         {
             j = m << k;
-            /* 0 <= j < N_WAVE/2 */
-            wr =  Sinewave[j+N_WAVE/4];
-            wi = -Sinewave[j];
-
-            if(inverse) wi = -wi;
-            if(shift)
-            {
-                wr >>= 1;
-                wi >>= 1;
-            }
+            
+            FFT_twiddle(wr, wi, j, shift, inverse);
+            
+            FFT_reg reg;
+            fixed *reg_s = ((fixed*) &reg);
+            
             for(i=m; i<n; i+=istep)
             {
                 j = i + l;
-                
-                FFT_reg reg;
-                fixed *reg_s = ((fixed*) &reg);
                 
                 reg_s[3] = fr[i];
                 reg_s[2] = fr[j];

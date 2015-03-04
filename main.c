@@ -73,6 +73,7 @@ int main()
         imag_org[i] = 0;
     }
 
+    /*
     //FFT
     fix_fft(real, imag, M, 0);
     fix_fft_org(real_org, imag_org, M, 0);
@@ -86,6 +87,7 @@ int main()
 
     printf("\nIFFT2\n");
     show_result(real, real_org, imag, imag_org, N);
+    */
 
     return 0;
 }

@@ -132,6 +132,31 @@ table SIN_wave 16 1024 {
 
 regfile FFT_reg 64 2 fftv
 
+operation FFT_bit_reverse {in AR b, out AR o, in AR m} {}
+{
+	assign o = {
+		TIEmux(m[2:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, b[0]),
+		TIEmux(m[2:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, b[0], b[1]),
+		TIEmux(m[2:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, b[0], b[1], b[2]),
+		TIEmux(m[2:0], 1'b0, 1'b0, 1'b0, 1'b0, b[0], b[1], b[2], b[3]),
+		TIEmux(m[2:0], 1'b0, 1'b0, 1'b0, b[0], b[1], b[2], b[3], b[4]),
+		TIEmux(m[2:0], 1'b0, 1'b0, b[0], b[1], b[2], b[3], b[4], b[5]),
+		TIEmux(m[2:0], 1'b0, b[0], b[1], b[2], b[3], b[4], b[5], b[6])
+	};
+}
+
+operation FFT_twiddle {out AR wr, out AR wi, in AR j, in BR shift, in BR inverse} {}
+{
+	// 256 = N_WAVE / 4
+	wire [9:0] idx = TIEadd(j, 256, 1'b0);
+	wire [15:0] sin = SIN_wave[j];
+	wire [15:0] wr1 = SIN_wave[idx];
+	wire [15:0] wi1 = TIEadd(~sin, 16'b0, 1'b1);
+	wire [15:0] wi2 = TIEmux(inverse, wi1, sin);
+	assign wr = TIEmux(shift, wr1, {wr1[15], wr1[15:1]});
+	assign wi = TIEmux(shift, wi2, {wi2[15], wi2[15:1]});
+}
+
 operation FFT_calc {inout FFT_reg data, in AR wr, in AR wi, in AR shift} {}
 {
 	wire [15:0] fri = data[63:48];
