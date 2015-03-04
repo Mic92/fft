@@ -33,6 +33,8 @@
 
 #include "fft.h"
 
+#include <xtensa/tie/fft_inst.h>
+
 /*
  *	fix_fft() - perform fast Fourier transform.
  *
@@ -57,6 +59,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
     mr = 0;
     nn = n - 1;
     scale = 0;
+    
 
     /* decimation in time - re-order data */
     for(m=1; m<=nn; ++m) {
@@ -128,24 +131,22 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
             }
             for(i=m; i<n; i+=istep)
             {
-
                 j = i + l;
-                tr = fix_mpy(wr,fr[j]) - fix_mpy(wi,fi[j]);
-                ti = fix_mpy(wr,fi[j]) + fix_mpy(wi,fr[j]);
-
-                qr = fr[i];
-                qi = fi[i];
-
-                if(shift)
-                {
-                        qr >>= 1;
-                        qi >>= 1;
-                }
-
-                fr[j] = qr - tr;
-                fi[j] = qi - ti;
-                fr[i] = qr + tr;
-                fi[i] = qi + ti;
+                
+                FFT_reg reg;
+                fixed *reg_s = ((fixed*) &reg);
+                
+                reg_s[3] = fr[i];
+                reg_s[2] = fr[j];
+                reg_s[1] = fi[i];
+                reg_s[0] = fi[j];
+                
+                FFT_calc(reg, wr, wi, shift);
+                
+                fr[i] = reg_s[3];
+                fr[j] = reg_s[2];
+                fi[i] = reg_s[1];
+                fi[j] = reg_s[0];
             }
         }
         --k;
