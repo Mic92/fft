@@ -132,6 +132,30 @@ table SIN_wave 16 1024 {
 
 regfile FFT_reg 64 2 fftv
 
+state FFT_loop 32 add_read_write
+
+operation FFT_scale {in AR fr, in AR fi, out BR shift, inout AR scale} {}
+{
+	wire [4:0] jc1 = TIEcmp(fr[15:0], 16'd16383, 1'b1);
+	wire [4:0] mc1 = TIEcmp(fi[15:0], 16'd16383, 1'b1);
+	wire [4:0] jc2 = TIEcmp(fr[15:0], 16'd49153, 1'b1);
+	wire [4:0] mc2 = TIEcmp(fi[15:0], 16'd49153, 1'b1);
+	
+	wire x = jc1[0] | mc1[0] | jc2[4] | mc2[4];
+	assign shift = x;
+	
+	wire [15:0] scaleInc = TIEadd(scale, 16'b0, 1'b1);
+	assign scale = TIEmux(x, scale, scaleInc);
+} 
+
+operation FFT_loop_check {in AR n, in AR istep, out BR t, out AR j} {inout FFT_loop}
+{
+	wire [4:0] cmpres = TIEcmp(FFT_loop, n, 1'b0);
+	assign t = cmpres[4];
+	assign FFT_loop = TIEadd(FFT_loop, istep, 1'b0);
+	assign j = TIEadd(FFT_loop, {1'b0, istep[15:1]}, 1'b0);
+}
+
 operation FFT_bit_reverse {in AR b, out AR o, in AR m} {}
 {
 	assign o = {
