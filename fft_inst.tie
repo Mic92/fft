@@ -134,18 +134,12 @@ regfile FFT_reg 64 2 fftv
 
 state FFT_loop 32 add_read_write
 
-operation FFT_scale {in AR fr, in AR fi, out BR shift, inout AR scale} {}
+operation FFT_shift_check {in AR fr, in AR fi, out BR cmp} {}
 {
-	wire [4:0] jc1 = TIEcmp(fr[15:0], 16'd16383, 1'b1);
-	wire [4:0] mc1 = TIEcmp(fi[15:0], 16'd16383, 1'b1);
-	wire [4:0] jc2 = TIEcmp(fr[15:0], 16'd49153, 1'b1);
-	wire [4:0] mc2 = TIEcmp(fi[15:0], 16'd49153, 1'b1);
+	wire [4:0] jc1 = TIEcmp(fr[15:0], 16'd16383, 1'b0);
+	wire [4:0] jc2 = TIEcmp(fi[15:0], 16'd16383, 1'b0);
 	
-	wire x = jc1[0] | mc1[0] | jc2[4] | mc2[4];
-	assign shift = x;
-	
-	wire [15:0] scaleInc = TIEadd(scale, 16'b0, 1'b1);
-	assign scale = TIEmux(x, scale, scaleInc);
+	assign cmp = jc1[0] | jc2[0];
 } 
 
 operation FFT_loop_check {in AR n, in AR istep, out BR t, out AR j} {inout FFT_loop}
@@ -219,8 +213,8 @@ operation FFT_calc {inout FFT_reg data, in AR wr, in AR wi, in AR shift} {}
 format flix64_0 64 { flix64_0_slot0, flix64_0_slot1 }
 
 slot_opcodes flix64_0_slot0 {
-	 ADD, ADDI, BGEU, BLTU, L16SI, L32I, MOVNEZ, NEG, NOP, S16I, SEXT, SRAI, SUB,
-	 ld.FFT_reg, mv.FFT_reg, st.FFT_reg }
+	 ADD, ADDI, BGEU, BLTU, L16SI, L32I, MOVNEZ, NEG, NOP, S16I, SEXT, SRAI, SUB, FFT_twiddle,
+	 ld.FFT_reg, mv.FFT_reg, st.FFT_reg, FFT_loop_check, FFT_calc, FFT_shift_check, FFT_bit_reverse}
 slot_opcodes flix64_0_slot1 {
 	 ADD, ADDI, ADDX2, xt_widebranch18, BEQZ, BGE, BLT, BNEZ, FFT_twiddle, J,
-	 MOV.N, NOP, SEXT, SRAI, SUB }
+	 MOV.N, NOP, SEXT, SRAI, SUB, FFT_loop_check, FFT_calc, FFT_shift_check, FFT_bit_reverse}
