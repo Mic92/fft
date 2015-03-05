@@ -215,3 +215,12 @@ operation FFT_calc {inout FFT_reg data, in AR wr, in AR wi, in AR shift} {}
 		fijo
 	};
 }
+
+format flix64_0 64 { flix64_0_slot0, flix64_0_slot1 }
+
+slot_opcodes flix64_0_slot0 {
+	 ADD, ADDI, BGEU, BLTU, L16SI, L32I, MOVNEZ, NEG, NOP, S16I, SEXT, SRAI, SUB,
+	 ld.FFT_reg, mv.FFT_reg, st.FFT_reg }
+slot_opcodes flix64_0_slot1 {
+	 ADD, ADDI, ADDX2, xt_widebranch18, BEQZ, BGE, BLT, BNEZ, FFT_twiddle, J,
+	 MOV.N, NOP, SEXT, SRAI, SUB }
