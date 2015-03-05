@@ -94,7 +94,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         	    m = fi[i];
         	    if(m < 0) m = -m;
 
-        	    if(j > 16383 || m > 16383)
+        	    if(FFT_shift_check(j,m))
         	    {
         	        shift = 1;
         	        break;
