@@ -61,13 +61,14 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
     scale = 0;
     
     int mm = m;
-    xtbool t;
 
     /* decimation in time - re-order data */
-    for(m=1; m<=nn; ++m) {
-        mr = FFT_bit_reverse(m, mm);
+    for(m=0;;) {
+        FFT_bit_reverse(m, mr, mm);
 
+        if(m >= nn) break;
         if(mr <= m) continue;
+        
         tr = fr[m];
         fr[m] = fr[mr];
         fr[mr] = tr;
@@ -97,10 +98,10 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         	    if(FFT_shift_check(j,m))
         	    {
         	        shift = 1;
+        	        ++scale;
         	        break;
         	    }
-        	}
-        	if(shift) ++scale;        	
+        	}       	
         }
         else
         {
@@ -128,6 +129,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
             {
             	i = RUR_FFT_loop();
             	
+                xtbool t;
             	FFT_loop_check(n, istep, t, j);
             	if(!t)
             		break;

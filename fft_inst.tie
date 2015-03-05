@@ -150,17 +150,19 @@ operation FFT_loop_check {in AR n, in AR istep, out BR t, out AR j} {inout FFT_l
 	assign j = TIEadd(FFT_loop, {1'b0, istep[15:1]}, 1'b0);
 }
 
-operation FFT_bit_reverse {in AR b, out AR o, in AR m} {}
+operation FFT_bit_reverse {inout AR m, out AR mr, in AR mm} {}
 {
-	assign o = {
-		TIEmux(m[2:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, b[0]),
-		TIEmux(m[2:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, b[0], b[1]),
-		TIEmux(m[2:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, b[0], b[1], b[2]),
-		TIEmux(m[2:0], 1'b0, 1'b0, 1'b0, 1'b0, b[0], b[1], b[2], b[3]),
-		TIEmux(m[2:0], 1'b0, 1'b0, 1'b0, b[0], b[1], b[2], b[3], b[4]),
-		TIEmux(m[2:0], 1'b0, 1'b0, b[0], b[1], b[2], b[3], b[4], b[5]),
-		TIEmux(m[2:0], 1'b0, b[0], b[1], b[2], b[3], b[4], b[5], b[6])
+	wire [15:0] x = TIEadd(m, 0, 1'b1);
+	assign mr = {
+		TIEmux(mm[2:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0]),
+		TIEmux(mm[2:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1]),
+		TIEmux(mm[2:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2]),
+		TIEmux(mm[2:0], 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3]),
+		TIEmux(mm[2:0], 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4]),
+		TIEmux(mm[2:0], 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5]),
+		TIEmux(mm[2:0], 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6])
 	};
+	assign m = x; 
 }
 
 operation FFT_twiddle {out AR wr, out AR wi, in AR j, in BR shift, in BR inverse} {}
