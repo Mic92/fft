@@ -84,18 +84,23 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
     {
         if(inverse)
         {
-            /* variable scaling, depending upon data */
-            shift = 0;
-            for(i=0; i<n; ++i)
-            {
-            	xtbool sshift;
-            	FFT_scale(fr[i], fi[i], sshift, scale);
-            	if(sshift)
-            	{
-            		shift = (int) sshift;
-            		break;
-            	}
-            }
+        	/* variable scaling, depending upon data */
+        	shift = 0;
+        	for(i=0; i<n; ++i)
+        	{
+        	    j = fr[i];
+        	    if(j < 0) j = -j;
+
+        	    m = fi[i];
+        	    if(m < 0) m = -m;
+
+        	    if(j > 16383 || m > 16383)
+        	    {
+        	        shift = 1;
+        	        break;
+        	    }
+        	}
+        	if(shift) ++scale;        	
         }
         else
         {
