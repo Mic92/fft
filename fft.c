@@ -121,15 +121,9 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
             FFT_reg reg;
             fixed *reg_s = ((fixed*) &reg);
             
-            WUR_FFT_loop(m);
-            while(1)
+            for(i=m; i<n; i+=istep)
             {
-            	i = RUR_FFT_loop();
-            	
-                xtbool t;
-            	FFT_loop_check(n, istep, t, j);
-            	if(!t)
-            		break;
+                j = i + l;
                 
                 reg_s[3] = fr[i];
                 reg_s[2] = fr[j];
