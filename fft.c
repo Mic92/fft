@@ -90,10 +90,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         	for(i=0; i<n; ++i)
         	{
         	    j = fr[i];
-        	    if(j < 0) j = -j;
-
         	    m = fi[i];
-        	    if(m < 0) m = -m;
 
         	    if(FFT_shift_check(j,m))
         	    {

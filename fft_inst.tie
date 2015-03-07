@@ -134,12 +134,20 @@ regfile FFT_reg 64 2 fftv
 
 state FFT_loop 32 add_read_write
 
-operation FFT_shift_check {in AR fr, in AR fi, out BR cmp} {}
+
+operation FFT_shift_check {in AR fr, in AR fi, out BR needs_shift} {}
 {
-	wire [4:0] jc1 = TIEcmp(fr[15:0], 16'd16383, 1'b0);
-	wire [4:0] jc2 = TIEcmp(fi[15:0], 16'd16383, 1'b0);
+    // fr > 0
+	wire [4:0] jc1 = TIEcmp(fr[15:0], 16'd16383, 1'b1);
+	// fi > 0
+	wire [4:0] jc2 = TIEcmp(fi[15:0], 16'd16383, 1'b1);
 	
-	assign cmp = jc1[0] | jc2[0];
+	// fr < 0
+	wire [4:0] jc3 = TIEcmp(fr[15:0], 16'd49153, 1'b1);
+	// fi < 0
+	wire [4:0] jc4 = TIEcmp(fi[15:0], 16'd49153, 1'b1);
+	
+	assign needs_shift = jc1[0] | jc2[0] | jc3[4] | jc4[4];
 } 
 
 operation FFT_loop_check {in AR n, in AR istep, out BR t, out AR j} {inout FFT_loop}
