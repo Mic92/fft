@@ -7,7 +7,7 @@
 
 
 //defined by Compile Target
-#define M       3
+//#define M       3
 
 //number of points
 #define N       (1<<M)
