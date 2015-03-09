@@ -80,7 +80,6 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         fi[mr] = ti;
     }
 
-
     l = 1;
     k = LOG2_N_WAVE-1;
     while(l < n)

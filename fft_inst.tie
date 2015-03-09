@@ -200,6 +200,9 @@ operation FFT_calc {inout FFT_reg data, in AR wr, in AR wi, in AR shift} {}
 	wire [15:0] fii = data[31:16];
 	wire [15:0] fij = data[15:0];
 	
+	// TODO semantic for hardware implementation
+	// TODO shared functions
+	// TODO ersetzen durch TIEmac
 	wire [31:0] tr1  = TIEmul(wr, frj, 1'b1);
 	wire [15:0] tr1s = tr1[30:15];
 	wire [31:0] tr2  = TIEmul(wi, fij, 1'b1);
@@ -215,6 +218,7 @@ operation FFT_calc {inout FFT_reg data, in AR wr, in AR wi, in AR shift} {}
 	wire [15:0] qr = TIEmux(shift[0], fri, {fri[15], fri[15:1]});
 	wire [15:0] qi = TIEmux(shift[0], fii, {fii[15], fii[15:1]});
 	
+	// TODO multiple add
 	wire [15:0] frio = TIEadd(qr,  tr, 1'b0);
 	wire [15:0] frjo = TIEadd(qr, ~tr, 1'b1);
 	wire [15:0] fiio = TIEadd(qi,  ti, 1'b0);
@@ -299,7 +303,6 @@ immediate_range ld.FFT_reg_immed2 -32 24 8
 // flix64_0, format width 64 bits, 2 slots
 // 
 //--------------------------------------------------------------------------
-
 
 format flix64_0 64 { flix64_0_slot0, flix64_0_slot1, flix64_0_slot2 }
 
