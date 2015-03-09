@@ -195,41 +195,44 @@ operation FFT_twiddle {out AR wr, out AR wi, in AR j, in BR shift, in BR inverse
 
 operation FFT_calc {inout FFT_reg data, in AR wr, in AR wi, in AR shift} {}
 {
-	wire [15:0] fri = data[63:48];
-	wire [15:0] frj = data[47:32];
-	wire [15:0] fii = data[31:16];
-	wire [15:0] fij = data[15:0];
+	assign data = FFT_butterfly(data, wr, wi, shift);
+}
+
+function [63:0] FFT_butterfly ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) {
 	
-	// TODO semantic for hardware implementation
-	// TODO shared functions
-	// TODO ersetzen durch TIEmac
-	wire [31:0] tr1  = TIEmul(wr, frj, 1'b1);
-	wire [15:0] tr1s = tr1[30:15];
-	wire [31:0] tr2  = TIEmul(wi, fij, 1'b1);
-	wire [15:0] tr2s = tr2[30:15];
-	wire [15:0] tr = TIEadd(tr1s, ~tr2s, 1'b1);
+	// operands real parts	
+	wire [15:0] r1 = data[63:48];
+	wire [15:0] r2 = data[47:32];
 	
-	wire [31:0] ti1 = TIEmul(wr, fij, 1'b1);
-	wire [15:0] ti1s = ti1[30:15];
-	wire [31:0] ti2 = TIEmul(wi, frj, 1'b1);
-	wire [15:0] ti2s = ti2[30:15]; 
-	wire [15:0] ti = TIEadd(ti1s, ti2s, 1'b0);
+	// operands imaginary parts
+	wire [15:0] i1 = data[31:16];
+	wire [15:0] i2 = data[15:0];
 	
-	wire [15:0] qr = TIEmux(shift[0], fri, {fri[15], fri[15:1]});
-	wire [15:0] qi = TIEmux(shift[0], fii, {fii[15], fii[15:1]});
+	// odd real part
+	wire [31:0] oddr1  = TIEmul(wr, r2, 1'b1);
+	wire [15:0] oddr1s = oddr1[30:15];
+	wire [31:0] oddr2  = TIEmul(wi, i2, 1'b1);
+	wire [15:0] oddr2s = oddr2[30:15];
+	wire [15:0] oddr = TIEadd(oddr1s, ~oddr2s, 1'b1);
 	
-	// TODO multiple add
-	wire [15:0] frio = TIEadd(qr,  tr, 1'b0);
-	wire [15:0] frjo = TIEadd(qr, ~tr, 1'b1);
-	wire [15:0] fiio = TIEadd(qi,  ti, 1'b0);
-	wire [15:0] fijo = TIEadd(qi, ~ti, 1'b1);
+	// odd imaginary part
+	wire [31:0] oddi1 = TIEmul(wr, i2, 1'b1);
+	wire [15:0] oddi1s = oddi1[30:15];
+	wire [31:0] oddi2 = TIEmul(wi, r2, 1'b1);
+	wire [15:0] oddi2s = oddi2[30:15]; 
+	wire [15:0] oddi = TIEadd(oddi1s, oddi2s, 1'b0);
 	
-	assign data = {
-		frio,
-		frjo,
-		fiio,
-		fijo
-	};
+	// even parts
+	wire [15:0] evenr = TIEmux(shift[0], r1, {r1[15], r1[15:1]});
+	wire [15:0] eveni = TIEmux(shift[0], i1, {i1[15], i1[15:1]});
+	
+	// final result
+	wire [15:0] resr1 = TIEadd(evenr,  oddr, 1'b0);
+	wire [15:0] resr2 = TIEadd(evenr, ~oddr, 1'b1);
+	wire [15:0] resi1 = TIEadd(eveni,  oddi, 1'b0);
+	wire [15:0] resi2 = TIEadd(eveni, ~oddi, 1'b1);
+	
+	assign FFT_butterfly = { resr1, resr2, resi1, resi2 }; 
 }
 
 ////////////////////////////////////////////////////////////////////////////
