@@ -110,16 +110,13 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         /* it may not be obvious, but the shift will be performed
            on each data point exactly once, during this pass. */
         istep = l << 1;		//step width of current butterfly
-        for(m=0; m<l; ++m)
+        
+        FFT_reg reg;
+        fixed *reg_s = ((fixed*) &reg);
+        
+        for(m=0; m<n; m+=istep)
         {
-            j = m << k;
-            
-            FFT_twiddle(wr, wi, j, shift, inverse);
-            
-            FFT_reg reg;
-            fixed *reg_s = ((fixed*) &reg);
-            
-            for(i=m; i<n; i+=istep)
+        	for(i=m; i<m+l; ++i)
             {
                 j = i + l;
                 
@@ -128,7 +125,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
                 reg_s[1] = fi[i];
                 reg_s[0] = fi[j];
                 
-                FFT_calc(reg, wr, wi, shift);
+                FFT_calc(reg, i << k, (xtbool) shift, inverse);
                 
                 fr[i] = reg_s[3];
                 fr[j] = reg_s[2];
