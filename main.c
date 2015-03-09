@@ -7,7 +7,7 @@
 #include        <math.h>
 
 
-#define M       3
+#define M       8
 
 //number of points
 #define N       (1<<M)

@@ -130,7 +130,7 @@ table SIN_wave 16 1024 {
   -1607,  -1406,  -1206,  -1005,   -804,   -603,   -402,   -201
 }
 
-regfile FFT_reg 128 2 fftv
+regfile FFT_reg 64 2 fftv
 
 operation FFT_shift_check {in AR *base, in AR offset, out AR needs_shift} {out VAddr, in MemDataIn128}
 {
@@ -162,13 +162,21 @@ operation FFT_bit_reverse {inout AR m, out AR mr, in AR mm} {}
 {
 	wire [15:0] x = TIEadd(m, 1'b0, 1'b1);
 	assign mr = {
-		TIEmux(mm[2:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0]),
-		TIEmux(mm[2:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1]),
-		TIEmux(mm[2:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2]),
-		TIEmux(mm[2:0], 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3]),
-		TIEmux(mm[2:0], 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4]),
-		TIEmux(mm[2:0], 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5]),
-		TIEmux(mm[2:0], 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6])
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10],x[11]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10],x[11],x[12]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10],x[11],x[12],x[13]),
+		TIEmux(mm[3:0], 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10],x[11],x[12],x[13],x[14])
 	};
 	assign m = x; 
 }
