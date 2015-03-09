@@ -97,7 +97,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         	        ++scale;
         	        break;
         	    }
-        	}
+        	}       	
         }
         else
         {

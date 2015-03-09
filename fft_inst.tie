@@ -201,12 +201,16 @@ operation FFT_calc {inout FFT_reg data, in AR wr, in AR wi, in AR shift} {}
 	wire [15:0] fij = data[15:0];
 	
 	wire [31:0] tr1  = TIEmul(wr, frj, 1'b1);
-	wire [31:0] tr2  = TIEmac(wi, fij, tr1, 1'b1, 1'b1);
-	wire [15:0] tr = tr2[30:15];
+	wire [15:0] tr1s = tr1[30:15];
+	wire [31:0] tr2  = TIEmul(wi, fij, 1'b1);
+	wire [15:0] tr2s = tr2[30:15];
+	wire [15:0] tr = TIEadd(tr1s, ~tr2s, 1'b1);
 	
 	wire [31:0] ti1 = TIEmul(wr, fij, 1'b1);
-	wire [31:0] ti2 = TIEmac(wi, frj, ti1, 1'b1, 1'b0);
-	wire [15:0] ti = ti2[30:15]; 
+	wire [15:0] ti1s = ti1[30:15];
+	wire [31:0] ti2 = TIEmul(wi, frj, 1'b1);
+	wire [15:0] ti2s = ti2[30:15]; 
+	wire [15:0] ti = TIEadd(ti1s, ti2s, 1'b0);
 	
 	wire [15:0] qr = TIEmux(shift[0], fri, {fri[15], fri[15:1]});
 	wire [15:0] qi = TIEmux(shift[0], fii, {fii[15], fii[15:1]});
