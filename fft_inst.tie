@@ -130,22 +130,32 @@ table SIN_wave 16 1024 {
   -1607,  -1406,  -1206,  -1005,   -804,   -603,   -402,   -201
 }
 
-regfile FFT_reg 64 2 fftv
+regfile FFT_reg 128 2 fftv
 
-operation FFT_shift_check {in AR fr, in AR fi, out BR needs_shift} {}
+operation FFT_shift_check {in AR *base, in AR offset, out AR needs_shift} {out VAddr, in MemDataIn128}
 {
-    // fr > 0
-	wire [4:0] jc1 = TIEcmp(fr[15:0], 16'd16383, 1'b1);
-	// fi > 0
-	wire [4:0] jc2 = TIEcmp(fi[15:0], 16'd16383, 1'b1);
+	assign VAddr = TIEadd(base, offset[31:1], 1'b0);
 	
-	// fr < 0
-	wire [4:0] jc3 = TIEcmp(fr[15:0], 16'd49153, 1'b1);
-	// fi < 0
-	wire [4:0] jc4 = TIEcmp(fi[15:0], 16'd49153, 1'b1);
-	
-	assign needs_shift = jc1[0] | jc2[0] | jc3[4] | jc4[4];
-} 
+	wire [15:0] o1 = MemDataIn128[15:0];
+	wire [15:0] o2 = MemDataIn128[31:16];
+	wire [15:0] o3 = MemDataIn128[47:32];
+	wire [15:0] o4 = MemDataIn128[63:48];
+	wire [15:0] o5 = MemDataIn128[79:64];
+	wire [15:0] o6 = MemDataIn128[95:80];
+	wire [15:0] o7 = MemDataIn128[111:96];
+	wire [15:0] o8 = MemDataIn128[127:112];
+
+	wire s1 = (!o1[15] && o1[14]) || (o1[15] && (!o1[14] || o1[13:0] == 14'b0));
+	wire s2 = (!o2[15] && o2[14]) || (o2[15] && (!o2[14] || o2[13:0] == 14'b0));
+	wire s3 = (!o3[15] && o3[14]) || (o3[15] && (!o3[14] || o3[13:0] == 14'b0));
+	wire s4 = (!o4[15] && o4[14]) || (o4[15] && (!o4[14] || o4[13:0] == 14'b0));
+	wire s5 = (!o5[15] && o5[14]) || (o5[15] && (!o5[14] || o5[13:0] == 14'b0));
+	wire s6 = (!o6[15] && o6[14]) || (o6[15] && (!o6[14] || o6[13:0] == 14'b0));
+	wire s7 = (!o7[15] && o7[14]) || (o7[15] && (!o7[14] || o7[13:0] == 14'b0));
+	wire s8 = (!o8[15] && o8[14]) || (o8[15] && (!o8[14] || o8[13:0] == 14'b0));
+
+	assign needs_shift = {31'b0, s1 || s2 || s3 || s4 || s5 || s6 || s7 || s8 };
+}
 
 
 operation FFT_bit_reverse {inout AR m, out AR mr, in AR mm} {}
@@ -282,14 +292,14 @@ immediate_range ld.FFT_reg_immed2 -32 24 8
 format flix64_0 64 { flix64_0_slot0, flix64_0_slot1, flix64_0_slot2 }
 
 slot_opcodes Inst {
-	 FFT_bit_reverse, FFT_calc, FFT_shift_check, FFT_twiddle, ld.FFT_reg,
+	 FFT_bit_reverse, FFT_calc, FFT_twiddle, ld.FFT_reg,
 	 mv.FFT_reg, st.FFT_reg }
 slot_opcodes flix64_0_slot0 {
-	 ADD, BEQZ, BGEU, BLTU, BNEZ, L16SI, MOV.N, NOP, S16I, SEXT, SUB }
+	 ADD, BEQZ, BGEU, BLTU, BNEZ, L16SI, MOV.N, NOP, S16I, SEXT, SUB, FFT_shift_check }
 slot_opcodes flix64_0_slot1 {
 	 ADD, ADDX2, MOV.N, MOVNEZ, NEG, NOP }
 slot_opcodes flix64_0_slot2 {
-	 ADD, L16SI, NOP, S16I, SUB }
+	 ADD, L16SI, NOP, S16I, SUB, FFT_shift_check }
 
 
 //--------------------------------------------------------------------------

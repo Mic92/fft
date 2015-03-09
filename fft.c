@@ -35,6 +35,8 @@
 
 #include <xtensa/tie/fft_inst.h>
 
+#include <stdio.h>
+
 /*
  *	fix_fft() - perform fast Fourier transform.
  *
@@ -87,12 +89,9 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         {
         	/* variable scaling, depending upon data */
         	shift = 0;
-        	for(i=0; i<n; ++i)
+        	for(i=0; i<n/8; i+=8)
         	{
-        	    j = fr[i];
-        	    m = fi[i];
-
-        	    if(FFT_shift_check(j,m))
+        	    if(FFT_shift_check(fr, i) | FFT_shift_check(fi, i))
         	    {
         	        shift = 1;
         	        ++scale;
