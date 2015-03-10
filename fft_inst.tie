@@ -1,4 +1,4 @@
-table SIN_wave 16 1024 {
+table sin_wave 16 1024 {
 0, 201, 402, 603, 804, 1005, 1206, 1406,
 1607, 1808, 2009, 2209, 2410, 2610, 2811, 3011,
 3211, 3411, 3611, 3811, 4011, 4210, 4409, 4608,
@@ -130,9 +130,9 @@ table SIN_wave 16 1024 {
 63929, 64130, 64330, 64531, 64732, 64933, 65134, 65335
 }
 
-regfile FFT_reg 64 2 fftv
+regfile fft_reg 64 2 fftv
 
-operation FFT_shift_check {in AR *base, in AR offset, out AR needs_shift} {out VAddr, in MemDataIn128}
+operation fft_shift_check {in AR *base, in AR offset, out AR needs_shift} {out VAddr, in MemDataIn128}
 {
 	assign VAddr = TIEadd(base, offset[31:1], 1'b0);
 	
@@ -158,7 +158,7 @@ operation FFT_shift_check {in AR *base, in AR offset, out AR needs_shift} {out V
 }
 
 
-operation FFT_bit_reverse {inout AR m, out AR mr, in AR mm} {}
+operation fft_bit_reverse {inout AR m, out AR mr, in AR mm} {}
 {
 	wire [15:0] x = TIEadd(m, 1'b0, 1'b1);
 	assign mr = {
@@ -181,22 +181,22 @@ operation FFT_bit_reverse {inout AR m, out AR mr, in AR mm} {}
 	assign m = x; 
 }
 
-function [31:0] FFT_twiddle ([31:0] j, [0:0] shift, [0:0] inverse)
+function [31:0] fft_twiddle ([31:0] j, [0:0] shift, [0:0] inverse)
 {
 	// 256 = N_WAVE / 4
 	wire [9:0] idx = TIEadd(j, 256, 1'b0);
-	wire [15:0] sin = SIN_wave[j];
-	wire [15:0] wr1 = SIN_wave[idx];
+	wire [15:0] sin = sin_wave[j];
+	wire [15:0] wr1 = sin_wave[idx];
 	wire [15:0] wi1 = TIEadd(~sin, 16'b0, 1'b1);
 	wire [15:0] wi2 = TIEmux(inverse, wi1, sin);
 	
-	assign FFT_twiddle = {
+	assign fft_twiddle = {
 		TIEmux(shift, wr1, {wr1[15], wr1[15:1]}),
 		TIEmux(shift, wi2, {wi2[15], wi2[15:1]})
 	};
 }
 
-function [63:0] FFT_butterfly ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) {
+function [63:0] fft_butterfly ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) {
 	
 	// operands real parts	
 	wire [15:0] r1 = data[63:48];
@@ -230,17 +230,17 @@ function [63:0] FFT_butterfly ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) {
 	wire [15:0] resi1 = TIEadd(eveni,  oddi, 1'b0);
 	wire [15:0] resi2 = TIEadd(eveni, ~oddi, 1'b1);
 	
-	assign FFT_butterfly = { resr1, resr2, resi1, resi2 }; 
+	assign fft_butterfly = { resr1, resr2, resi1, resi2 }; 
 }
 
-operation FFT_calc {inout FFT_reg data, in AR i, in BR shift, in BR inverse} {}
+operation fft_calc {inout fft_reg data, in AR i, in BR shift, in BR inverse} {}
 {
-	wire [31:0] twiddle = FFT_twiddle(i, shift, inverse);
+	wire [31:0] twiddle = fft_twiddle(i, shift, inverse);
 	
 	wire [15:0] wr = twiddle[31:16];
 	wire [15:0] wi = twiddle[15:0];
 	
-	assign data = FFT_butterfly(data, wr, wi, shift);
+	assign data = fft_butterfly(data, wr, wi, shift);
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -334,4 +334,4 @@ slot_opcodes flix64_0_slot2 {
 //
 //--------------------------------------------------------------------------
 
-ctype FFT_reg 64 64 FFT_reg default
+ctype fft_reg 64 64 fft_reg default
