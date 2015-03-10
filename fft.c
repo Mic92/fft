@@ -145,6 +145,16 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 	        	}
 	        	break;
 	        
+	        case 4:
+	        	for(i=0; i<n; i+=8)
+	        	{
+	        		simd_r = FFT_SIMD_LOAD(fr, i);
+	        		simd_i = FFT_SIMD_LOAD(fi, i);
+	    			FFT_SIMD_THIRD(simd_r, simd_i, shift, inverse);
+	    			FFT_COMBINED_STORE(fr, fi, i, simd_r, simd_i);
+	        	}
+	        	break;
+	        
 	        default:
 		        for(m=0; m<n; m+=istep)
 		        {
