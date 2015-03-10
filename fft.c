@@ -127,8 +127,8 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         {
         	for(i=0; i<n; i+=8)
         	{
-        		simd_r = FFT_simd_load(fr, i);
-        		simd_i = FFT_simd_load(fi, i);
+        		simd_r = FFT_SIMD_LOAD(fr, i);
+        		simd_i = FFT_SIMD_LOAD(fi, i);
     			FFT_SIMD_FIRST(simd_r, simd_i, (xtbool) shift);
     			FFT_COMBINED_STORE(fr, fi, i, simd_r, simd_i);
         	}

@@ -306,10 +306,10 @@ operation FFT_SIMD_FIRST {inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in BR sh
 	wire [15:0] wr = TIEmux(shift, 16'h7fff, 16'h3fff);
 	wire [15:0] wi = 16'b0;
 
-	wire [63:0] res1 = FFT_butterfly({fr[127:96], fi[127:96]}, wr, wi, shift);
-	wire [63:0] res2 = FFT_butterfly({fr[95:64],  fi[95:64]},  wr, wi, shift);
-	wire [63:0] res3 = FFT_butterfly({fr[63:32],  fi[63:32]},  wr, wi, shift);
-	wire [63:0] res4 = FFT_butterfly({fr[31:0],   fi[31:0]},   wr, wi, shift);
+	wire [63:0] res1 = FFT_BUTTERFLY({fr[127:96], fi[127:96]}, wr, wi, shift);
+	wire [63:0] res2 = FFT_BUTTERFLY({fr[95:64],  fi[95:64]},  wr, wi, shift);
+	wire [63:0] res3 = FFT_BUTTERFLY({fr[63:32],  fi[63:32]},  wr, wi, shift);
+	wire [63:0] res4 = FFT_BUTTERFLY({fr[31:0],   fi[31:0]},   wr, wi, shift);
 
 	assign fr = { res1[63:32], res2[63:32], res3[63:32], res4[63:32] };
 	assign fi = { res1[31:0],  res2[31:0],  res3[31:0],  res4[31:0] };
