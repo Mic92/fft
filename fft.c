@@ -37,6 +37,14 @@
 
 #include <stdio.h>
 
+#define FFT_COMBINED_STORE(_fr, _fi, _i, _simd_r, _simd_i) \
+    asm ("{"                                  "\n" \
+         "    fft_simd_store %1, %0, %2"      "\n" \
+         "    nop"                            "\n" \
+         "    fft_simd_store %3, %0, %4"      "\n" \
+         "}" \
+         :: "r" (_i), "r" (_fr), "r" (_simd_r), "r" (_fi), "r" (_simd_i));
+
 /*
  *	fix_fft() - perform fast Fourier transform.
  *
@@ -61,7 +69,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
     mr = 0;
     nn = n - 1;
     scale = 0;
-    
+
     int mm = m;
 
     /* decimation in time - re-order data */
@@ -70,7 +78,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 
         if(m >= nn) break;
         if(mr <= m) continue;
-        
+
         tr = fr[m];
         fr[m] = fr[mr];
         fr[mr] = tr;
@@ -96,7 +104,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         	        ++scale;
         	        break;
         	    }
-        	}       	
+        	}
         }
         else
         {
@@ -110,28 +118,42 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         /* it may not be obvious, but the shift will be performed
            on each data point exactly once, during this pass. */
         istep = l << 1;		//step width of current butterfly
-        
+
         FFT_REG reg;
+        FFT_REG_SIMD simd_r, simd_i;
         fixed *reg_s = ((fixed*) &reg);
-        
-        for(m=0; m<n; m+=istep)
+
+        if(l == 1)
         {
-        	for(i=m; i<m+l; ++i)
-            {
-                j = i + l;
-                
-                reg_s[3] = fr[i];
-                reg_s[2] = fr[j];
-                reg_s[1] = fi[i];
-                reg_s[0] = fi[j];
-                
-                FFT_CALC(reg, i << k, (xtbool) shift, inverse);
-                
-                fr[i] = reg_s[3];
-                fr[j] = reg_s[2];
-                fi[i] = reg_s[1];
-                fi[j] = reg_s[0];
-            }
+        	for(i=0; i<n; i+=8)
+        	{
+        		simd_r = FFT_simd_load(fr, i);
+        		simd_i = FFT_simd_load(fi, i);
+    			FFT_SIMD_FIRST(simd_r, simd_i, (xtbool) shift);
+    			FFT_COMBINED_STORE(fr, fi, i, simd_r, simd_i);
+        	}
+        }
+        else
+        {
+	        for(m=0; m<n; m+=istep)
+	        {
+	        	for(i=m; i<m+l; ++i)
+	            {
+	                j = i + l;
+
+	                reg_s[3] = fr[i];
+	                reg_s[2] = fr[j];
+	                reg_s[1] = fi[i];
+	                reg_s[0] = fi[j];
+
+	                FFT_CALC(reg, i << k, (xtbool) shift, inverse);
+
+	                fr[i] = reg_s[3];
+	                fr[j] = reg_s[2];
+	                fi[i] = reg_s[1];
+	                fi[j] = reg_s[0];
+	            }
+        	}
         }
         --k;
         l = istep;
