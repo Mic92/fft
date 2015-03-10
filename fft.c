@@ -37,6 +37,14 @@
 
 #include <stdio.h>
 
+#define FFT_combined_store(_fr, _fi, _i, _simd_r, _simd_i) \
+    asm ("{"                                  "\n" \
+         "    fft_simd_store %1, %0, %2"      "\n" \
+         "    nop"                            "\n" \
+         "    fft_simd_store %3, %0, %4"      "\n" \
+         "}" \
+         :: "r" (_i), "r" (_fr), "r" (_simd_r), "r" (_fi), "r" (_simd_i));
+
 /*
  *	fix_fft() - perform fast Fourier transform.
  *
@@ -122,8 +130,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         		simd_r = FFT_simd_load(fr, i);
         		simd_i = FFT_simd_load(fi, i);
     			FFT_simd_first(simd_r, simd_i, (xtbool) shift);
-        		FFT_simd_store(fr, i, simd_r);
-        		FFT_simd_store(fi, i, simd_i);
+    			FFT_combined_store(fr, fi, i, simd_r, simd_i);
         	}
         }
         else
