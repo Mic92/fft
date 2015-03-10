@@ -1,4 +1,4 @@
-table sin_wave 16 1024 {
+table SIN_WAVE 16 1024 {
 0, 201, 402, 603, 804, 1005, 1206, 1406,
 1607, 1808, 2009, 2209, 2410, 2610, 2811, 3011,
 3211, 3411, 3611, 3811, 4011, 4210, 4409, 4608,
@@ -130,9 +130,9 @@ table sin_wave 16 1024 {
 63929, 64130, 64330, 64531, 64732, 64933, 65134, 65335
 }
 
-regfile fft_reg 64 2 fftv
+regfile FFT_REG 64 2 fftv
 
-operation fft_shift_check {in AR *base, in AR offset, out AR needs_shift} {out VAddr, in MemDataIn128}
+operation FFT_SHIFT_CHECK {in AR *base, in AR offset, out AR needs_shift} {out VAddr, in MemDataIn128}
 {
 	assign VAddr = TIEadd(base, offset[31:1], 1'b0);
 	
@@ -158,7 +158,7 @@ operation fft_shift_check {in AR *base, in AR offset, out AR needs_shift} {out V
 }
 
 
-operation fft_bit_reverse {inout AR m, out AR mr, in AR mm} {}
+operation FFT_BIT_REVERSE {inout AR m, out AR mr, in AR mm} {}
 {
 	wire [15:0] x = TIEadd(m, 1'b0, 1'b1);
 	assign mr = {
@@ -181,22 +181,22 @@ operation fft_bit_reverse {inout AR m, out AR mr, in AR mm} {}
 	assign m = x; 
 }
 
-function [31:0] fft_twiddle ([31:0] j, [0:0] shift, [0:0] inverse)
+function [31:0] FFT_TWIDDLE ([31:0] j, [0:0] shift, [0:0] inverse)
 {
 	// 256 = N_WAVE / 4
 	wire [9:0] idx = TIEadd(j, 256, 1'b0);
-	wire [15:0] sin = sin_wave[j];
-	wire [15:0] wr1 = sin_wave[idx];
+	wire [15:0] sin = SIN_WAVE[j];
+	wire [15:0] wr1 = SIN_WAVE[idx];
 	wire [15:0] wi1 = TIEadd(~sin, 16'b0, 1'b1);
 	wire [15:0] wi2 = TIEmux(inverse, wi1, sin);
 	
-	assign fft_twiddle = {
+	assign FFT_TWIDDLE = {
 		TIEmux(shift, wr1, {wr1[15], wr1[15:1]}),
 		TIEmux(shift, wi2, {wi2[15], wi2[15:1]})
 	};
 }
 
-function [63:0] fft_butterfly ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) {
+function [63:0] FFT_BUTTERFLY ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) {
 	
 	// operands real parts	
 	wire [15:0] r1 = data[63:48];
@@ -230,17 +230,17 @@ function [63:0] fft_butterfly ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) {
 	wire [15:0] resi1 = TIEadd(eveni,  oddi, 1'b0);
 	wire [15:0] resi2 = TIEadd(eveni, ~oddi, 1'b1);
 	
-	assign fft_butterfly = { resr1, resr2, resi1, resi2 }; 
+	assign FFT_BUTTERFLY = { resr1, resr2, resi1, resi2 }; 
 }
 
-operation fft_calc {inout fft_reg data, in AR i, in BR shift, in BR inverse} {}
+operation FFT_CALC {inout FFT_REG data, in AR i, in BR shift, in BR inverse} {}
 {
-	wire [31:0] twiddle = fft_twiddle(i, shift, inverse);
+	wire [31:0] twiddle = FFT_TWIDDLE(i, shift, inverse);
 	
 	wire [15:0] wr = twiddle[31:16];
 	wire [15:0] wi = twiddle[15:0];
 	
-	assign data = fft_butterfly(data, wr, wi, shift);
+	assign data = FFT_BUTTERFLY(data, wr, wi, shift);
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -304,29 +304,22 @@ operation fft_calc {inout fft_reg data, in AR i, in BR shift, in BR inverse} {}
 //
 //--------------------------------------------------------------------------
 
-immediate_range st.FFT_reg_immed2 -32 24 8
-immediate_range ld.FFT_reg_immed2 -32 24 8
+immediate_range ST.FFT_REG_immed2 -32 24 8
+immediate_range LD.FFT_REG_immed2 -32 24 8
 
 //--------------------------------------------------------------------------
 //
 // FLIX Formats and Slots
 //
 // flix64_0, format width 64 bits, 2 slots
-// 
-//--------------------------------------------------------------------------
-
 format flix64_0 64 { flix64_0_slot0, flix64_0_slot1, flix64_0_slot2 }
 
-slot_opcodes Inst {
-	 FFT_bit_reverse, FFT_calc, ld.FFT_reg,
-	 mv.FFT_reg, st.FFT_reg }
-slot_opcodes flix64_0_slot0 {
-	 ADD, BEQZ, BGEU, BLTU, BNEZ, L16SI, MOV.N, NOP, S16I, SEXT, SUB, FFT_shift_check }
-slot_opcodes flix64_0_slot1 {
-	 ADD, ADDX2, MOV.N, MOVNEZ, NEG, NOP }
-slot_opcodes flix64_0_slot2 {
-	 ADD, L16SI, NOP, S16I, SUB, FFT_shift_check }
+//Full slots:
+slot_opcodes flix64_0_slot0 { MOVI, J, ADDX2, L16SI, S16I, FFT_BIT_REVERSE, S32I, L32I, FFT_SHIFT_CHECK, OR, NOP, ADD, FFT_CALC }
+slot_opcodes flix64_0_slot1 { SSL, SLL, MOVI, ADDX2, NOP, ADDI.N, ANDBC, ADD, MOV.N, J }
+slot_opcodes flix64_0_slot2 { S32I, ADDI.N, L32I, L16SI, ADDX2, NOP, FFT_SHIFT_CHECK, J, MOVI, SSL, MOV.N, S16I }
 
+//--------------------------------------------------------------------------
 
 //--------------------------------------------------------------------------
 //
@@ -334,4 +327,4 @@ slot_opcodes flix64_0_slot2 {
 //
 //--------------------------------------------------------------------------
 
-ctype fft_reg 64 64 fft_reg default
+ctype FFT_REG 64 64 FFT_REG default

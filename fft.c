@@ -66,7 +66,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 
     /* decimation in time - re-order data */
     for(m=0;;) {
-        FFT_bit_reverse(m, mr, mm);
+        FFT_BIT_REVERSE(m, mr, mm);
 
         if(m >= nn) break;
         if(mr <= m) continue;
@@ -90,7 +90,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         	shift = 0;
         	for(i=0; i<n/8; i+=8)
         	{
-        	    if(FFT_shift_check(fr, i) | FFT_shift_check(fi, i))
+        	    if(FFT_SHIFT_CHECK(fr, i) | FFT_SHIFT_CHECK(fi, i))
         	    {
         	        shift = 1;
         	        ++scale;
@@ -111,7 +111,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
            on each data point exactly once, during this pass. */
         istep = l << 1;		//step width of current butterfly
         
-        FFT_reg reg;
+        FFT_REG reg;
         fixed *reg_s = ((fixed*) &reg);
         
         for(m=0; m<n; m+=istep)
@@ -125,7 +125,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
                 reg_s[1] = fi[i];
                 reg_s[0] = fi[j];
                 
-                FFT_calc(reg, i << k, (xtbool) shift, inverse);
+                FFT_CALC(reg, i << k, (xtbool) shift, inverse);
                 
                 fr[i] = reg_s[3];
                 fr[j] = reg_s[2];
