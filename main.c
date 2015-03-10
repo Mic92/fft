@@ -5,12 +5,13 @@
 #include        <stdio.h>
 #include        <math.h>
 
-
 //defined by Compile Target
 //#define M       3
 
 //number of points
 #define N       (1<<M)
+
+#define DEBUG 1
 
 fixed real[N], imag[N];
 fixed real_org[N], imag_org[N];
@@ -39,48 +40,23 @@ int main()
         imag_org[i] = 0;
     }
 
-    printf("\nInput Data\n");
-    for (i=0; i<N; i++)
-    {
-
-        printf("%d: %d, %d\n", i, real[i], imag[i]);
-    }
-
     //FFT
     fix_fft(real, imag, M, 0);
     fix_fft_org(real_org, imag_org, M, 0);
 
+#ifdef DEBUG
     printf("\nFFT\n");
     show_result(real, real_org, imag, imag_org, N);
+#endif
 
     //IFFT
     fix_fft(real, imag, M, 1);
     fix_fft_org(real_org, imag_org, M, 1);
 
+#ifdef DEBUG
     printf("\nIFFT\n");
     show_result(real, real_org, imag, imag_org, N);
-
-    /*for(i=0; i<N; i++)
-    {
-        real[i] = 1000*(cos(i*2*3.1415926535/N) + sin(i*2*3.1415926535/N));
-        real_org[i] = real[i];
-        imag[i] = 0;
-        imag_org[i] = 0;
-    }
-
-    //FFT
-    fix_fft(real, imag, M, 0);
-    fix_fft_org(real_org, imag_org, M, 0);
-
-    printf("\nFFT2\n");
-    show_result(real, real_org, imag, imag_org, N);
-
-    //IFFT
-    fix_fft(real, imag, M, 1);
-    fix_fft_org(real_org, imag_org, M, 1);
-
-    printf("\nIFFT2\n");
-    show_result(real, real_org, imag, imag_org, N);*/
+#endif
 
     return 0;
 }
