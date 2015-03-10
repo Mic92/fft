@@ -302,7 +302,6 @@ operation FFT_CALC {inout FFT_REG data, in AR i, in BR shift, in BR inverse} {}
 // 4 butterflies at once
 operation FFT_SIMD_FIRST {inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in BR shift} {}
 {
-
 	wire [15:0] wr = TIEmux(shift, 16'h7fff, 16'h3fff);
 	wire [15:0] wi = 16'b0;
 
@@ -313,6 +312,23 @@ operation FFT_SIMD_FIRST {inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in BR sh
 
 	assign fr = { res1[63:32], res2[63:32], res3[63:32], res4[63:32] };
 	assign fi = { res1[31:0],  res2[31:0],  res3[31:0],  res4[31:0] };
+}
+
+// 4 butterflies at once
+operation FFT_SIMD_SECOND {inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in BR shift, in BR inverse} {}
+{
+	wire [15:0] wr1 = TIEmux(shift, 16'h7fff, 16'h3fff);
+	wire [15:0] wi1 = 16'b0;
+	wire [15:0] wr2 = 16'b0;
+	wire [15:0] wi2 = TIEmux({inverse, shift}, 16'h8001, 16'hc000, 16'h7fff, 16'h3fff);
+	
+	wire [63:0] res1 = FFT_BUTTERFLY({fr[127:112], fr[95:80], fi[127:112], fi[95:80]}, wr1, wi1, shift);
+	wire [63:0] res2 = FFT_BUTTERFLY({fr[111:96],  fr[79:64], fi[111:96],  fi[79:64]}, wr2, wi2, shift);
+	wire [63:0] res3 = FFT_BUTTERFLY({fr[63:48],   fr[31:16], fi[63:48],   fi[31:16]}, wr1, wi1, shift);
+	wire [63:0] res4 = FFT_BUTTERFLY({fr[47:32],   fr[15:0],  fi[47:32],   fi[15:0]},  wr2, wi2, shift);
+	
+	assign fr = { res1[63:48], res2[63:48], res1[47:32], res2[47:32], res3[63:48], res4[63:48], res3[47:32], res4[47:32] };
+	assign fi = { res1[31:16], res2[31:16], res1[15:0],  res2[15:0],  res3[31:16], res4[31:16], res3[15:0],  res4[15:0] };
 }
 
 

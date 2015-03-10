@@ -122,38 +122,50 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         FFT_REG reg;
         FFT_REG_SIMD simd_r, simd_i;
         fixed *reg_s = ((fixed*) &reg);
-
-        if(l == 1)
+        
+        switch(l)
         {
-        	for(i=0; i<n; i+=8)
-        	{
-        		simd_r = FFT_SIMD_LOAD(fr, i);
-        		simd_i = FFT_SIMD_LOAD(fi, i);
-    			FFT_SIMD_FIRST(simd_r, simd_i, (xtbool) shift);
-    			FFT_COMBINED_STORE(fr, fi, i, simd_r, simd_i);
-        	}
-        }
-        else
-        {
-	        for(m=0; m<n; m+=istep)
-	        {
-	        	for(i=m; i<m+l; ++i)
-	            {
-	                j = i + l;
-
-	                reg_s[3] = fr[i];
-	                reg_s[2] = fr[j];
-	                reg_s[1] = fi[i];
-	                reg_s[0] = fi[j];
-
-	                FFT_CALC(reg, i << k, (xtbool) shift, inverse);
-
-	                fr[i] = reg_s[3];
-	                fr[j] = reg_s[2];
-	                fi[i] = reg_s[1];
-	                fi[j] = reg_s[0];
-	            }
-        	}
+	        case 1:
+	        	for(i=0; i<n; i+=8)
+	        	{
+	        		simd_r = FFT_SIMD_LOAD(fr, i);
+	        		simd_i = FFT_SIMD_LOAD(fi, i);
+	    			FFT_SIMD_FIRST(simd_r, simd_i, shift);
+	    			FFT_COMBINED_STORE(fr, fi, i, simd_r, simd_i);
+	        	}
+	        	break;
+	        
+	        case 2:
+	        	for(i=0; i<n; i+=8)
+	        	{
+	        		simd_r = FFT_SIMD_LOAD(fr, i);
+	        		simd_i = FFT_SIMD_LOAD(fi, i);
+	    			FFT_SIMD_SECOND(simd_r, simd_i, shift, inverse);
+	    			FFT_COMBINED_STORE(fr, fi, i, simd_r, simd_i);
+	        	}
+	        	break;
+	        
+	        default:
+		        for(m=0; m<n; m+=istep)
+		        {
+		        	for(i=m; i<m+l; ++i)
+		            {
+		                j = i + l;
+		                
+		                reg_s[3] = fr[i];
+		                reg_s[2] = fr[j];
+		                reg_s[1] = fi[i];
+		                reg_s[0] = fi[j];
+		                
+		                FFT_CALC(reg, i << k, (xtbool) shift, inverse);
+		                
+		                fr[i] = reg_s[3];
+		                fr[j] = reg_s[2];
+		                fi[i] = reg_s[1];
+		                fi[j] = reg_s[0];
+		            }
+		        }
+		        break;
         }
         --k;
         l = istep;
