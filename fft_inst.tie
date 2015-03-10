@@ -348,9 +348,9 @@ immediate_range LD.FFT_REG_immed2 -32 24 8
 // flix64_0, format width 64 bits, 2 slots
 format flix64_0 64 { flix64_0_slot0, flix64_0_slot1, flix64_0_slot2 }
 
-slot_opcodes flix64_0_slot0 { MOVI, J, ADDX2, L16SI, S16I, S32I, L32I, FFT_SHIFT_CHECK, OR, ADD, FFT_CALC, FFT_SIMD_LOAD, FFT_SIMD_STORE }
-slot_opcodes flix64_0_slot1 { SSL, SLL, MOVI, ADDX2, NOP, ADDI.N, ANDBC, ADD, MOV.N, J }
-slot_opcodes flix64_0_slot2 { S32I, ADDI.N, L32I, L16SI, ADDX2, NOP, FFT_SHIFT_CHECK, J, MOVI, SSL, MOV.N, S16I, FFT_SIMD_LOAD, FFT_SIMD_STORE }
+slot_opcodes flix64_0_slot0 { MOVI, SLL, S32I, ADDX2, L16SI, S16I, NOP, L32I, ANDBC, FFT_SIMD_LOAD, FFT_SIMD_FIRST, FFT_SIMD_STORE, SRAI, ADDI, FFT_SHIFT_CHECK, OR, J, SLLI, ADD, FFT_SIMD_SECOND }
+slot_opcodes flix64_0_slot1 { SSL, MOV.N, MOVI, ADDX2, NOP, J, ADDI, ANDBC, ORBC, SRAI, ADD }
+slot_opcodes flix64_0_slot2 { NOP, MOV.N, S32I, ADDI, L16SI, ADDX2, S16I, L32I, J, FFT_SIMD_LOAD, FFT_SIMD_STORE, MOVI, FFT_SHIFT_CHECK, ADD, SSL }
 
 //--------------------------------------------------------------------------
 
