@@ -126,6 +126,7 @@ int fix_fft_org(fixed fr[], fixed fi[], int m, int inverse)
                 wr >>= 1;
                 wi >>= 1;
             }
+            
             for(i=m; i<n; i+=istep)
             {
 
@@ -148,6 +149,7 @@ int fix_fft_org(fixed fr[], fixed fi[], int m, int inverse)
                 fi[i] = qi + ti;
             }
         }
+        
         --k;
         l = istep;
     }

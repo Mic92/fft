@@ -112,26 +112,41 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         istep = l << 1;		//step width of current butterfly
         
         FFT_reg reg;
+        FFT_reg_simd simd_r, simd_i;
         fixed *reg_s = ((fixed*) &reg);
         
-        for(m=0; m<n; m+=istep)
+        if(l == 1)
         {
-        	for(i=m; i<m+l; ++i)
-            {
-                j = i + l;
-                
-                reg_s[3] = fr[i];
-                reg_s[2] = fr[j];
-                reg_s[1] = fi[i];
-                reg_s[0] = fi[j];
-                
-                FFT_calc(reg, i << k, (xtbool) shift, inverse);
-                
-                fr[i] = reg_s[3];
-                fr[j] = reg_s[2];
-                fi[i] = reg_s[1];
-                fi[j] = reg_s[0];
-            }
+        	for(i=0; i<n; i+=8)
+        	{
+        		simd_r = FFT_simd_load(fr, i);
+        		simd_i = FFT_simd_load(fi, i);
+    			FFT_simd_first(simd_r, simd_i, (xtbool) shift);
+        		FFT_simd_store(fr, i, simd_r);
+        		FFT_simd_store(fi, i, simd_i);
+        	}
+        }
+        else
+        {
+	        for(m=0; m<n; m+=istep)
+	        {
+	        	for(i=m; i<m+l; ++i)
+	            {
+	                j = i + l;
+	                
+	                reg_s[3] = fr[i];
+	                reg_s[2] = fr[j];
+	                reg_s[1] = fi[i];
+	                reg_s[0] = fi[j];
+	                
+	                FFT_calc(reg, i << k, (xtbool) shift, inverse);
+	                
+	                fr[i] = reg_s[3];
+	                fr[j] = reg_s[2];
+	                fi[i] = reg_s[1];
+	                fi[j] = reg_s[0];
+	            }
+        	}
         }
         --k;
         l = istep;
