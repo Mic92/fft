@@ -132,7 +132,7 @@ table SIN_WAVE 16 1024 {
 
 regfile FFT_REG 64 2 fftv
 
-regfile FFT_REG_SIMD 128 2 fftsv
+regfile FFT_REG_SIMD 128 4 fftsv
 
 function [31:0] FFT_VAR_SHIFT([31:0] data, [3:0] sh)
 {
@@ -307,12 +307,13 @@ operation FFT_CALC {inout FFT_REG data, in AR i, in BR shift, in BR inverse} {}
 	wire [15:0] wr = twiddle[31:16];
 	wire [15:0] wi = twiddle[15:0];
 
-	assign data = FFT_BUTTERFLY(data, wr, wi, shift);
+	assign data = FFT_BUTTERFLY1(data, wr, wi, shift);
 }
 
-// 4 butterflies at once
+// first stage: four non-interleaved butterflies
 operation FFT_SIMD_FIRST {inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in BR shift} {}
 {
+	// 1
 	wire [15:0] wr = TIEmux(shift, 16'h7fff, 16'h3fff);
 	wire [15:0] wi = 16'b0;
 
@@ -325,11 +326,14 @@ operation FFT_SIMD_FIRST {inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in BR sh
 	assign fi = { res1[31:0],  res2[31:0],  res3[31:0],  res4[31:0] };
 }
 
-// 4 butterflies at once
+// second stage: four butterflies, two interleaved at a time
 operation FFT_SIMD_SECOND {inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in BR shift, in BR inverse} {}
 {
+	// 1
 	wire [15:0] wr1 = TIEmux(shift, 16'h7fff, 16'h3fff);
 	wire [15:0] wi1 = 16'b0;
+	
+	// -j
 	wire [15:0] wr2 = 16'b0;
 	wire [15:0] wi2 = TIEmux({inverse, shift}, 16'h8001, 16'hc000, 16'h7fff, 16'h3fff);
 	
@@ -340,6 +344,34 @@ operation FFT_SIMD_SECOND {inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in BR s
 	
 	assign fr = { res1[63:48], res2[63:48], res1[47:32], res2[47:32], res3[63:48], res4[63:48], res3[47:32], res4[47:32] };
 	assign fi = { res1[31:16], res2[31:16], res1[15:0],  res2[15:0],  res3[31:16], res4[31:16], res3[15:0],  res4[15:0] };
+}
+
+// third stage: four interleaved butterflies
+operation FFT_SIMD_THIRD {inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in BR shift, in BR inverse} {}
+{
+	// 1
+	wire [15:0] wr1 = TIEmux(shift, 16'h7fff, 16'h3fff);
+	wire [15:0] wi1 = 16'b0;
+	
+	// 1/sqrt(2) * (1 - j)
+	wire [15:0] wr2 = TIEmux(shift, 16'h5a81, 16'h2d40);
+	wire [15:0] wi2 = TIEmux({inverse, shift}, 16'ha57f, 16'hd2bf, 16'h5a81, 16'h2d40);
+	
+	// -j
+	wire [15:0] wr3 = 16'b0;
+	wire [15:0] wi3 = TIEmux({inverse, shift}, 16'h8001, 16'hc000, 16'h7fff, 16'h3fff);
+	
+	// - 1/sqrt(2) * (1 + j)
+	wire [15:0] wr4 = TIEmux(shift, 16'ha57f, 16'hd2bf);
+	wire [15:0] wi4 = wi2;
+	
+	wire [63:0] res1 = FFT_BUTTERFLY1({fr[127:112], fr[63:48], fi[127:112], fi[63:48]}, wr1, wi1, shift);
+	wire [63:0] res2 = FFT_BUTTERFLY2({fr[111:96],  fr[47:32], fi[111:96],  fi[47:32]}, wr2, wi2, shift);
+	wire [63:0] res3 = FFT_BUTTERFLY3({fr[95:80],   fr[31:16], fi[95:80],   fi[31:16]}, wr3, wi3, shift);
+	wire [63:0] res4 = FFT_BUTTERFLY4({fr[79:64],   fr[15:0],  fi[79:64],   fi[15:0]},  wr4, wi4, shift);
+	
+	assign fr = { res1[63:48], res2[63:48], res3[63:48], res4[63:48], res1[47:32], res2[47:32], res3[47:32], res4[47:32] };
+	assign fi = { res1[31:16], res2[31:16], res3[31:16], res4[31:16], res1[15:0],  res2[15:0],  res3[15:0],  res4[15:0] };
 }
 
 
@@ -359,7 +391,7 @@ immediate_range LD.FFT_REG_immed2 -32 24 8
 // flix64_0, format width 64 bits, 2 slots
 format flix64_0 64 { flix64_0_slot0, flix64_0_slot1, flix64_0_slot2 }
 
-slot_opcodes flix64_0_slot0 { MOVI, SLL, S32I, ADDX2, L16SI, S16I, NOP, L32I, ANDBC, FFT_SIMD_LOAD, FFT_SIMD_FIRST, FFT_SIMD_STORE, SRAI, ADDI, FFT_SHIFT_CHECK, OR, J, SLLI, ADD, FFT_SIMD_SECOND }
+slot_opcodes flix64_0_slot0 { MOVI, SLL, S32I, ADDX2, L16SI, S16I, NOP, L32I, ANDBC, FFT_SIMD_LOAD, FFT_SIMD_FIRST, FFT_SIMD_STORE, SRAI, ADDI, FFT_SHIFT_CHECK, OR, J, SLLI, ADD, FFT_SIMD_SECOND, FFT_SIMD_THIRD }
 slot_opcodes flix64_0_slot1 { SSL, MOV.N, MOVI, ADDX2, NOP, J, ADDI, ANDBC, ORBC, SRAI, ADD }
 slot_opcodes flix64_0_slot2 { NOP, MOV.N, S32I, ADDI, L16SI, ADDX2, S16I, L32I, J, FFT_SIMD_LOAD, FFT_SIMD_STORE, MOVI, FFT_SHIFT_CHECK, ADD, SSL }
 
