@@ -63,7 +63,8 @@
  */
 int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 {
-    int mr,nn,i,j,l,k,istep, n, scale, shift;
+    int mr,nn,i,j,l,k,istep, n, scale;
+    xtbool shift;
 
     fixed qr,qi;		//even input
     fixed tr,ti;		//odd input
