@@ -40,22 +40,30 @@ int main()
         imag_org[i] = 0;
     }
 
+    int scale, scale_org;
+    
     //FFT
-    fix_fft(real, imag, M, 0);
-    fix_fft_org(real_org, imag_org, M, 0);
+    scale = fix_fft(real, imag, M, 0);
+    scale_org = fix_fft_org(real_org, imag_org, M, 0);
 
 #ifdef DEBUG
     printf("\nFFT\n");
     show_result(real, real_org, imag, imag_org, N);
+    if (scale != scale_org) {
+    	printf("got scale: %d, expected: %d\n", scale, scale_org);
+    }
 #endif
 
     //IFFT
-    fix_fft(real, imag, M, 1);
-    fix_fft_org(real_org, imag_org, M, 1);
+    scale = fix_fft(real, imag, M, 1);
+    scale_org = fix_fft_org(real_org, imag_org, M, 1);
 
 #ifdef DEBUG
     printf("\nIFFT\n");
     show_result(real, real_org, imag, imag_org, N);
+    if (scale != scale_org) {
+    	printf("got scale: %d, expected: %d\n", scale, scale_org);
+    }
 #endif
 
     return 0;
