@@ -188,6 +188,39 @@ operation FFT_SIMD_STORE {in AR *base, in AR offset, in FFT_REG_SIMD data} {out 
 	assign MemDataOut128 = {o1, o2, o3, o4, o5, o6, o7, o8 };
 }
 
+operation FFT_SIMD_LOAD_SHUFFLE {in AR *base, in AR offset, inout FFT_REG_SIMD d1, inout FFT_REG_SIMD d2, in BR high} {out VAddr, in MemDataIn128}
+{
+	assign VAddr = TIEadd(base, {offset[30:0], 1'b0}, 1'b0);
+
+	wire [15:0] o1 = MemDataIn128[15:0];
+	wire [15:0] o2 = MemDataIn128[31:16];
+	wire [15:0] o3 = MemDataIn128[47:32];
+	wire [15:0] o4 = MemDataIn128[63:48];
+	wire [15:0] o5 = MemDataIn128[79:64];
+	wire [15:0] o6 = MemDataIn128[95:80];
+	wire [15:0] o7 = MemDataIn128[111:96];
+	wire [15:0] o8 = MemDataIn128[127:112];
+
+	assign d1 = TIEmux(high, {o1, o2, o3, o4, d1[63:0]}, {d1[127:64], o1, o2, o3, o4});
+	assign d2 = TIEmux(high, {o5, o6, o7, o8, d2[63:0]}, {d2[127:64], o5, o6, o7, o8});
+}
+
+operation FFT_SIMD_STORE_SHUFFLE {in AR *base, in AR offset, in FFT_REG_SIMD d1, in FFT_REG_SIMD d2, in BR high} {out VAddr, out MemDataOut128}
+{
+	assign VAddr = TIEadd(base, {offset[30:0], 1'b0}, 1'b0);
+
+	wire [15:0] o1 = TIEmux(high, d1[79:64],   d1[15:0]);
+	wire [15:0] o2 = TIEmux(high, d1[95:80],   d1[31:16]);
+	wire [15:0] o3 = TIEmux(high, d1[111:96],  d1[47:32]);
+	wire [15:0] o4 = TIEmux(high, d1[127:112], d1[63:48]);
+	wire [15:0] o5 = TIEmux(high, d2[79:64],   d2[15:0]);
+	wire [15:0] o6 = TIEmux(high, d2[95:80],   d2[31:16]);
+	wire [15:0] o7 = TIEmux(high, d2[111:96],  d2[47:32]);
+	wire [15:0] o8 = TIEmux(high, d2[127:112], d2[63:48]);
+
+	assign MemDataOut128 = {o5, o6, o7, o8, o1, o2, o3, o4 };
+}
+
 operation FFT_SHIFT_CHECK {in AR *base, in AR offset, out AR needs_shift} {out VAddr, in MemDataIn128}
 {
 	assign VAddr = TIEadd(base, offset[31:1], 1'b0);
@@ -346,24 +379,34 @@ operation FFT_SIMD_SECOND {inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in BR s
 	assign fi = { res1[31:16], res2[31:16], res1[15:0],  res2[15:0],  res3[31:16], res4[31:16], res3[15:0],  res4[15:0] };
 }
 
-// third stage: four interleaved butterflies
-operation FFT_SIMD_THIRD {inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in BR shift, in BR inverse} {}
+function [31:0] FFT_INC_SHIFT ([31:0] i, [31:0] x, [31:0] k)
 {
-	// 1
-	wire [15:0] wr1 = TIEmux(shift, 16'h7fff, 16'h3fff);
-	wire [15:0] wi1 = 16'b0;
+	wire [31:0] inc = TIEadd(i, x, 1'b0);
+	assign FFT_INC_SHIFT = FFT_VAR_SHIFT(inc, k);
+}
+
+state FFT_SIMD_K 32 add_read_write
+
+// third stage: four interleaved butterflies
+operation FFT_SIMD_THIRD {inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in AR i, in BR shift, in BR inverse} {in FFT_SIMD_K}
+{
+	wire [31:0] k = FFT_SIMD_K;
 	
-	// 1/sqrt(2) * (1 - j)
-	wire [15:0] wr2 = TIEmux(shift, 16'h5a81, 16'h2d40);
-	wire [15:0] wi2 = TIEmux({inverse, shift}, 16'ha57f, 16'hd2bf, 16'h5a81, 16'h2d40);
+	wire [31:0] tw1 = FFT_TWIDDLE(FFT_VAR_SHIFT(i, k), shift, inverse);
+	wire [15:0] wr1 = tw1[31:16];
+	wire [15:0] wi1 = tw1[15:0];
 	
-	// -j
-	wire [15:0] wr3 = 16'b0;
-	wire [15:0] wi3 = TIEmux({inverse, shift}, 16'h8001, 16'hc000, 16'h7fff, 16'h3fff);
+	wire [31:0] tw2 = FFT_TWIDDLE(FFT_INC_SHIFT(i, 1, k), shift, inverse);
+	wire [15:0] wr2 = tw2[31:16];
+	wire [15:0] wi2 = tw2[15:0];
 	
-	// - 1/sqrt(2) * (1 + j)
-	wire [15:0] wr4 = TIEmux(shift, 16'ha57f, 16'hd2bf);
-	wire [15:0] wi4 = wi2;
+	wire [31:0] tw3 = FFT_TWIDDLE(FFT_INC_SHIFT(i, 2, k), shift, inverse);
+	wire [15:0] wr3 = tw3[31:16];
+	wire [15:0] wi3 = tw3[15:0];
+	
+	wire [31:0] tw4 = FFT_TWIDDLE(FFT_INC_SHIFT(i, 3, k), shift, inverse);
+	wire [15:0] wr4 = tw4[31:16];
+	wire [15:0] wi4 = tw4[15:0];
 	
 	wire [63:0] res1 = FFT_BUTTERFLY1({fr[127:112], fr[63:48], fi[127:112], fi[63:48]}, wr1, wi1, shift);
 	wire [63:0] res2 = FFT_BUTTERFLY2({fr[111:96],  fr[47:32], fi[111:96],  fi[47:32]}, wr2, wi2, shift);
@@ -391,9 +434,9 @@ immediate_range LD.FFT_REG_immed2 -32 24 8
 // flix64_0, format width 64 bits, 2 slots
 format flix64_0 64 { flix64_0_slot0, flix64_0_slot1, flix64_0_slot2 }
 
-slot_opcodes flix64_0_slot0 { MOVI, SLL, S32I, ADDX2, L16SI, S16I, NOP, L32I, ANDBC, FFT_SIMD_LOAD, FFT_SIMD_FIRST, FFT_SIMD_STORE, SRAI, ADDI, FFT_SHIFT_CHECK, OR, J, SLLI, ADD, FFT_SIMD_SECOND, FFT_SIMD_THIRD }
-slot_opcodes flix64_0_slot1 { SSL, MOV.N, MOVI, ADDX2, NOP, J, ADDI, ANDBC, ORBC, SRAI, ADD }
-slot_opcodes flix64_0_slot2 { NOP, MOV.N, S32I, ADDI, L16SI, ADDX2, S16I, L32I, J, FFT_SIMD_LOAD, FFT_SIMD_STORE, MOVI, FFT_SHIFT_CHECK, ADD, SSL }
+slot_opcodes flix64_0_slot0 { MOVI, SLL, S32I, ADDX2, L16SI, S16I, NOP, L32I, ANDBC, FFT_SIMD_LOAD, FFT_SIMD_STORE, SRAI, ADDI, FFT_SHIFT_CHECK, OR, SLLI, ADD, FFT_SIMD_LOAD_SHUFFLE, FFT_SIMD_STORE_SHUFFLE }
+slot_opcodes flix64_0_slot1 { SSL, MOV.N, MOVI, ADDX2, NOP, J, ADDI, ANDBC, ORBC, SRAI, ADD, FFT_SIMD_FIRST, FFT_SIMD_SECOND, FFT_SIMD_THIRD }
+slot_opcodes flix64_0_slot2 { NOP, MOV.N, S32I, ADDI, L16SI, ADDX2, S16I, L32I, FFT_SIMD_LOAD, FFT_SIMD_STORE, MOVI, FFT_SHIFT_CHECK, ADD, SSL, FFT_SIMD_LOAD_SHUFFLE, FFT_SIMD_STORE_SHUFFLE }
 
 //--------------------------------------------------------------------------
 

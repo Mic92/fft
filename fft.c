@@ -43,8 +43,8 @@
          "    nop"                            "\n" \
          "    fft_simd_store %3, %0, %4"      "\n" \
          "}" \
-         :: "r" (_i), "r" (_fr), "r" (_simd_r), "r" (_fi), "r" (_simd_i));
-
+         :: "r" (_i), "r" (_fr), "r" (_simd_r), "r" (_fi), "r" (_simd_i));<e
+		        		
 #define FUSED_STORE(_p1, _v1, _p2, _v2) \
 	asm ("{"                                  "\n" \
          "    s16i %1, %0, 0"      "\n" \
@@ -132,7 +132,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         istep = l << 1;		//step width of current butterfly
 
         FFT_REG reg;
-        FFT_REG_SIMD simd_r, simd_i;
+        FFT_REG_SIMD simd_r, simd_i, simd_r2, simd_i2;
         fixed *reg_s = ((fixed*) &reg);
         
         switch(l)
@@ -158,16 +158,54 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 	        	break;
 	        
 	        case 4:
+	        	WUR_FFT_SIMD_K(7);
 	        	for(i=0; i<n; i+=8)
 	        	{
 	        		simd_r = FFT_SIMD_LOAD(fr, i);
 	        		simd_i = FFT_SIMD_LOAD(fi, i);
-	    			FFT_SIMD_THIRD(simd_r, simd_i, shift, inverse);
+	    			FFT_SIMD_THIRD(simd_r, simd_i, i, shift, inverse);
 	    			FFT_COMBINED_STORE(fr, fi, i, simd_r, simd_i);
 	        	}
 	        	break;
 	        
 	        default:
+	        	WUR_FFT_SIMD_K(k);
+        		xtbool b0 = 0, b1 = 1;
+		        for(m=0; m<n; m+=istep)
+		        {
+		        	for(i=m; i<m+l; i+=8)
+		            {
+		                j = i + l;
+		                
+		        		FFT_SIMD_LOAD_SHUFFLE(fr, i, simd_r, simd_r2, 0);
+		        		FFT_SIMD_LOAD_SHUFFLE(fi, i, simd_i, simd_i2, 0);
+		        		FFT_SIMD_LOAD_SHUFFLE(fr, j, simd_r, simd_r2, 1);
+		        		FFT_SIMD_LOAD_SHUFFLE(fi, j, simd_i, simd_i2, 1);
+		        		FFT_SIMD_THIRD(simd_r,  simd_i,  i,   shift, inverse);
+		        		FFT_SIMD_THIRD(simd_r2, simd_i2, i+4, shift, inverse);
+		        		
+		        	    asm ("{"                                  "\n"
+		        	         "    fft_simd_store_shuffle %1, %0, %2, %5, %7"  "\n"
+		        	         "    nop"                            "\n"
+		        	         "    fft_simd_store_shuffle %3, %0, %4, %6, %7"      "\n"
+		        	         "}"                                  "\n"
+		        	    :: "r" (i), "r" (fr), "r" (simd_r), "r" (fi), "r" (simd_i), "r" (simd_r2), "r" (simd_i2), "r" (b0));
+		        	    asm ("{"                                  "\n"
+		        	         "    fft_simd_store_shuffle %1, %0, %2, %5, %7"  "\n"
+		        	         "    nop"                            "\n"
+		        	         "    fft_simd_store_shuffle %3, %0, %4, %6, %7"      "\n"
+		        	         "}"
+		        	    :: "r" (j), "r" (fr), "r" (simd_r), "r" (fi), "r" (simd_i), "r" (simd_r2), "r" (simd_i2), "r" (b1));
+
+		        	    /*
+		        		FFT_SIMD_STORE_SHUFFLE(fr, i, simd_r, simd_r2, 0);
+		        		FFT_SIMD_STORE_SHUFFLE(fi, i, simd_i, simd_i2, 0);
+		        		FFT_SIMD_STORE_SHUFFLE(fr, j, simd_r, simd_r2, 1);
+		        		FFT_SIMD_STORE_SHUFFLE(fi, j, simd_i, simd_i2, 1);
+		        		*/
+		        	}
+		        }
+	        	/*
 		        for(m=0; m<n; m+=istep)
 		        {
 		        	for(i=m; i<m+l; ++i)
@@ -187,6 +225,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 		                fi[j] = reg_s[0];
 		            }
 		        }
+		        */
 		        break;
         }
         --k;
