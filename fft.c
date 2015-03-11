@@ -43,7 +43,7 @@
          "    nop"                            "\n" \
          "    fft_simd_store %3, %0, %4"      "\n" \
          "}" \
-         :: "r" (_i), "r" (_fr), "r" (_simd_r), "r" (_fi), "r" (_simd_i));<e
+         :: "r" (_i), "r" (_fr), "r" (_simd_r), "r" (_fi), "r" (_simd_i));
 		        		
 #define FUSED_STORE(_p1, _v1, _p2, _v2) \
 	asm ("{"                                  "\n" \
@@ -61,10 +61,10 @@
  *	size of data = 2^m
  *  set inverse to 0=dft, 1=idft
  */
-int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
+int fix_fft(fixed fr[], fixed fi[], int m, int _inverse)
 {
     int mr,nn,i,j,l,k,istep, n, scale;
-    xtbool shift;
+    xtbool shift, inverse = _inverse;
 
     fixed qr,qi;		//even input
     fixed tr,ti;		//odd input
@@ -196,36 +196,8 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
 		        	         "    fft_simd_store_shuffle %3, %0, %4, %6, %7"      "\n"
 		        	         "}"
 		        	    :: "r" (j), "r" (fr), "r" (simd_r), "r" (fi), "r" (simd_i), "r" (simd_r2), "r" (simd_i2), "r" (b1));
-
-		        	    /*
-		        		FFT_SIMD_STORE_SHUFFLE(fr, i, simd_r, simd_r2, 0);
-		        		FFT_SIMD_STORE_SHUFFLE(fi, i, simd_i, simd_i2, 0);
-		        		FFT_SIMD_STORE_SHUFFLE(fr, j, simd_r, simd_r2, 1);
-		        		FFT_SIMD_STORE_SHUFFLE(fi, j, simd_i, simd_i2, 1);
-		        		*/
 		        	}
 		        }
-	        	/*
-		        for(m=0; m<n; m+=istep)
-		        {
-		        	for(i=m; i<m+l; ++i)
-		            {
-		                j = i + l;
-		                
-		                reg_s[3] = fr[i];
-		                reg_s[2] = fr[j];
-		                reg_s[1] = fi[i];
-		                reg_s[0] = fi[j];
-		                
-		                FFT_CALC(reg, i << k, (xtbool) shift, inverse);
-		                
-		                fr[i] = reg_s[3];
-		                fr[j] = reg_s[2];
-		                fi[i] = reg_s[1];
-		                fi[j] = reg_s[0];
-		            }
-		        }
-		        */
 		        break;
         }
         --k;
