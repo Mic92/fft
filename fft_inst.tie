@@ -188,7 +188,9 @@ operation FFT_SIMD_STORE {in AR *base, in AR offset, in FFT_REG_SIMD data} {out 
 	assign MemDataOut128 = {o1, o2, o3, o4, o5, o6, o7, o8 };
 }
 
-operation FFT_SIMD_LOAD_SHUFFLE {in AR *base, in AR offset, inout FFT_REG_SIMD d1, inout FFT_REG_SIMD d2, in BR high} {out VAddr, in MemDataIn128}
+immediate_range offset 0 1 1
+
+operation FFT_SIMD_LOAD_SHUFFLE {in AR *base, in AR offset, inout FFT_REG_SIMD d1, inout FFT_REG_SIMD d2, in offset high} {out VAddr, in MemDataIn128}
 {
 	assign VAddr = TIEadd(base, {offset[30:0], 1'b0}, 1'b0);
 
@@ -201,22 +203,22 @@ operation FFT_SIMD_LOAD_SHUFFLE {in AR *base, in AR offset, inout FFT_REG_SIMD d
 	wire [15:0] o7 = MemDataIn128[111:96];
 	wire [15:0] o8 = MemDataIn128[127:112];
 
-	assign d1 = TIEmux(high, {o1, o2, o3, o4, d1[63:0]}, {d1[127:64], o1, o2, o3, o4});
-	assign d2 = TIEmux(high, {o5, o6, o7, o8, d2[63:0]}, {d2[127:64], o5, o6, o7, o8});
+	assign d1 = TIEmux(high[0:0], {o1, o2, o3, o4, d1[63:0]}, {d1[127:64], o1, o2, o3, o4});
+	assign d2 = TIEmux(high[0:0], {o5, o6, o7, o8, d2[63:0]}, {d2[127:64], o5, o6, o7, o8});
 }
 
-operation FFT_SIMD_STORE_SHUFFLE {in AR *base, in AR offset, in FFT_REG_SIMD d1, in FFT_REG_SIMD d2, in BR high} {out VAddr, out MemDataOut128}
+operation FFT_SIMD_STORE_SHUFFLE {in AR *base, in AR offset, in FFT_REG_SIMD d1, in FFT_REG_SIMD d2, in offset high} {out VAddr, out MemDataOut128}
 {
 	assign VAddr = TIEadd(base, {offset[30:0], 1'b0}, 1'b0);
 
-	wire [15:0] o1 = TIEmux(high, d1[79:64],   d1[15:0]);
-	wire [15:0] o2 = TIEmux(high, d1[95:80],   d1[31:16]);
-	wire [15:0] o3 = TIEmux(high, d1[111:96],  d1[47:32]);
-	wire [15:0] o4 = TIEmux(high, d1[127:112], d1[63:48]);
-	wire [15:0] o5 = TIEmux(high, d2[79:64],   d2[15:0]);
-	wire [15:0] o6 = TIEmux(high, d2[95:80],   d2[31:16]);
-	wire [15:0] o7 = TIEmux(high, d2[111:96],  d2[47:32]);
-	wire [15:0] o8 = TIEmux(high, d2[127:112], d2[63:48]);
+	wire [15:0] o1 = TIEmux(high[0:0], d1[79:64],   d1[15:0]);
+	wire [15:0] o2 = TIEmux(high[0:0], d1[95:80],   d1[31:16]);
+	wire [15:0] o3 = TIEmux(high[0:0], d1[111:96],  d1[47:32]);
+	wire [15:0] o4 = TIEmux(high[0:0], d1[127:112], d1[63:48]);
+	wire [15:0] o5 = TIEmux(high[0:0], d2[79:64],   d2[15:0]);
+	wire [15:0] o6 = TIEmux(high[0:0], d2[95:80],   d2[31:16]);
+	wire [15:0] o7 = TIEmux(high[0:0], d2[111:96],  d2[47:32]);
+	wire [15:0] o8 = TIEmux(high[0:0], d2[127:112], d2[63:48]);
 
 	assign MemDataOut128 = {o5, o6, o7, o8, o1, o2, o3, o4 };
 }
@@ -434,8 +436,8 @@ immediate_range LD.FFT_REG_immed2 -32 24 8
 // flix64_0, format width 64 bits, 2 slots
 format flix64_0 64 { flix64_0_slot0, flix64_0_slot1, flix64_0_slot2 }
 
-slot_opcodes flix64_0_slot0 { MOVI, S32I, L16SI, ADDX2, S16I, SRAI, FFT_SHIFT_CHECK, OR, FFT_SIMD_LOAD, FFT_SIMD_STORE, SLLI, ADD, L32I, ADDI, FFT_SIMD_LOAD_SHUFFLE, FFT_SIMD_STORE_SHUFFLE }
-slot_opcodes flix64_0_slot1 { SSL, MOVI, ADDI, J, ADDX2, NOP, MOV.N, ADD, FFT_SIMD_THIRD  }
+slot_opcodes flix64_0_slot0 { MOVI, S32I, L16SI, ADDX2, S16I, SRAI, FFT_SHIFT_CHECK, OR, FFT_SIMD_LOAD, FFT_SIMD_STORE, SLLI, ADD, L32I, ADDI, FFT_SIMD_LOAD_SHUFFLE, FFT_SIMD_STORE_SHUFFLE, FFT_SIMD_THIRD }
+slot_opcodes flix64_0_slot1 { SSL, MOVI, ADDI, J, ADDX2, NOP, MOV.N, ADD  }
 slot_opcodes flix64_0_slot2 { NOP, MOVI, ADDX2, L16SI, S16I, FFT_SHIFT_CHECK, FFT_SIMD_LOAD, FFT_SIMD_STORE, S32I, SSL, L32I, FFT_SIMD_LOAD_SHUFFLE, FFT_SIMD_STORE_SHUFFLE, FFT_SIMD_THIRD }
 
 //--------------------------------------------------------------------------

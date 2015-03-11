@@ -185,17 +185,17 @@ int fix_fft(fixed fr[], fixed fi[], int m, int _inverse)
 		        		FFT_SIMD_THIRD(simd_r2, simd_i2, i+4, shift, inverse);
 		        		
 		        	    asm ("{"                                  "\n"
-		        	         "    fft_simd_store_shuffle %1, %0, %2, %5, %7"  "\n"
+		        	         "    fft_simd_store_shuffle %1, %0, %2, %5, 0"  "\n"
 		        	         "    nop"                            "\n"
-		        	         "    fft_simd_store_shuffle %3, %0, %4, %6, %7"      "\n"
+		        	         "    fft_simd_store_shuffle %3, %0, %4, %6, 0"  "\n"
 		        	         "}"                                  "\n"
-		        	    :: "r" (i), "r" (fr), "r" (simd_r), "r" (fi), "r" (simd_i), "r" (simd_r2), "r" (simd_i2), "r" (b0));
+		        	    :: "r" (i), "r" (fr), "r" (simd_r), "r" (fi), "r" (simd_i), "r" (simd_r2), "r" (simd_i2));
 		        	    asm ("{"                                  "\n"
-		        	         "    fft_simd_store_shuffle %1, %0, %2, %5, %7"  "\n"
+		        	         "    fft_simd_store_shuffle %1, %0, %2, %5, 1"  "\n"
 		        	         "    nop"                            "\n"
-		        	         "    fft_simd_store_shuffle %3, %0, %4, %6, %7"      "\n"
+		        	         "    fft_simd_store_shuffle %3, %0, %4, %6, 1"  "\n"
 		        	         "}"
-		        	    :: "r" (j), "r" (fr), "r" (simd_r), "r" (fi), "r" (simd_i), "r" (simd_r2), "r" (simd_i2), "r" (b1));
+		        	    :: "r" (j), "r" (fr), "r" (simd_r), "r" (fi), "r" (simd_i), "r" (simd_r2), "r" (simd_i2));
 		        	}
 		        }
 		        break;
