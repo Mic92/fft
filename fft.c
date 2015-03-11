@@ -45,6 +45,14 @@
          "}" \
          :: "r" (_i), "r" (_fr), "r" (_simd_r), "r" (_fi), "r" (_simd_i));
 
+#define FUSED_STORE(_p1, _v1, _p2, _v2) \
+	asm ("{"                                  "\n" \
+         "    s16i %1, %0, 0"      "\n" \
+         "    nop"                            "\n" \
+         "    s16i %3, %2, 0"      "\n" \
+         "}" \
+         :: "r" (_p1), "r" (_v1), "r" (_p2), "r" (_v2));
+
 /*
  *	fix_fft() - perform fast Fourier transform.
  *
@@ -80,12 +88,15 @@ int fix_fft(fixed fr[], fixed fi[], int m, int inverse)
         if(mr <= m) continue;
 
         tr = fr[m];
-        fr[m] = fr[mr];
-        fr[mr] = tr;
-
         ti = fi[m];
+        //fixed foo = fi[mr];
+        //fixed bar = fr[mr];
+        
         fi[m] = fi[mr];
-        fi[mr] = ti;
+        fr[m] = fr[mr];     
+        //FUSED_STORE(fi + m, foo, fr + m, bar);
+        
+        FUSED_STORE(fi + mr, ti, fr + mr, tr);
     }
 
     l = 1;
