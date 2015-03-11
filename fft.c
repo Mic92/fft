@@ -37,21 +37,49 @@
 
 #include <stdio.h>
 
+#define FLIX
+
+#ifdef FLIX
 #define FFT_COMBINED_STORE(_fr, _fi, _i, _simd_r, _simd_i) \
-    asm ("{"                                  "\n" \
-         "    fft_simd_store %1, %0, %2"      "\n" \
-         "    nop"                            "\n" \
-         "    fft_simd_store %3, %0, %4"      "\n" \
+    asm ("{                                    \n" \
+         "    fft_simd_store %1, %0, %2        \n" \
+         "    nop                              \n" \
+         "    fft_simd_store %3, %0, %4        \n" \
          "}" \
          :: "r" (_i), "r" (_fr), "r" (_simd_r), "r" (_fi), "r" (_simd_i));
+
+#define VLIW_FFT_SIMD_STORE_SHUFFLE(i, fr, simd_r, fi, simd_i, simd_r2, simd_i2, high) \
+	asm ("{                                                                        \n" \
+	     "    fft_simd_store_shuffle %1, %0, %2, %5, " #high                      "\n" \
+	     "    nop                                                                  \n" \
+	     "    fft_simd_store_shuffle %3, %0, %4, %6," #high                      " \n" \
+	     "}" \
+	     :: "r" (i), "r" (fr), "r" (simd_r), "r" (fi), "r" (simd_i), "r" (simd_r2), "r" (simd_i2));
 		        		
 #define FUSED_STORE(_p1, _v1, _p2, _v2) \
-	asm ("{"                                  "\n" \
-         "    s16i %1, %0, 0"      "\n" \
-         "    nop"                            "\n" \
-         "    s16i %3, %2, 0"      "\n" \
+	asm ("{                         \n" \
+         "    s16i %1, %0, 0        \n" \
+         "    nop                   \n" \
+         "    s16i %3, %2, 0        \n" \
          "}" \
          :: "r" (_p1), "r" (_v1), "r" (_p2), "r" (_v2));
+
+#else
+
+#define FFT_COMBINED_STORE(_fr, _fi, _i, _simd_r, _simd_i) \
+	FFT_SIMD_STORE(fr, i, simd_r); \
+	FFT_SIMD_STORE(fi, i, simd_i); \
+
+#define VLIW_FFT_SIMD_STORE_SHUFFLE(i, fr, simd_r, fi, simd_i, simd_r2, simd_i2, high) \
+	FFT_SIMD_STORE_SHUFFLE(fr, i, simd_r, simd_r2, high); \
+	FFT_SIMD_STORE_SHUFFLE(fi, i, simd_i, simd_i2, high); \
+
+#define FUSED_STORE(_p1, _v1, _p2, _v2) \
+	do { \
+	*(_p1) = (_v1); \
+	*(_p2) = (_v2); \
+	} while(0)
+#endif
 
 /*
  *	fix_fft() - perform fast Fourier transform.
@@ -66,12 +94,12 @@ int fix_fft(fixed fr[], fixed fi[], int m, int _inverse)
     int mr,nn,i,j,l,k,istep, n, scale;
     xtbool shift, inverse = _inverse;
 
-    fixed qr,qi;		//even input
-    fixed tr,ti;		//odd input
-    fixed wr,wi;		//twiddle factor
+    fixed qr, qi;		//even input
+    fixed tr, ti;		//odd input
+    fixed wr, wi;		//twiddle factor
 
     //number of input data
-    n = 1<<m;
+    n = 1 << m;
 
     if(n > N_WAVE) return -1;
 
@@ -184,18 +212,8 @@ int fix_fft(fixed fr[], fixed fi[], int m, int _inverse)
 		        		FFT_SIMD_THIRD(simd_r,  simd_i,  i,   shift, inverse);
 		        		FFT_SIMD_THIRD(simd_r2, simd_i2, i+4, shift, inverse);
 		        		
-		        	    asm ("{"                                  "\n"
-		        	         "    fft_simd_store_shuffle %1, %0, %2, %5, 0"  "\n"
-		        	         "    nop"                            "\n"
-		        	         "    fft_simd_store_shuffle %3, %0, %4, %6, 0"  "\n"
-		        	         "}"                                  "\n"
-		        	    :: "r" (i), "r" (fr), "r" (simd_r), "r" (fi), "r" (simd_i), "r" (simd_r2), "r" (simd_i2));
-		        	    asm ("{"                                  "\n"
-		        	         "    fft_simd_store_shuffle %1, %0, %2, %5, 1"  "\n"
-		        	         "    nop"                            "\n"
-		        	         "    fft_simd_store_shuffle %3, %0, %4, %6, 1"  "\n"
-		        	         "}"
-		        	    :: "r" (j), "r" (fr), "r" (simd_r), "r" (fi), "r" (simd_i), "r" (simd_r2), "r" (simd_i2));
+		        	    VLIW_FFT_SIMD_STORE_SHUFFLE(i, fr, simd_r, fi, simd_i, simd_r2, simd_i2, 0);        	    
+		        	    VLIW_FFT_SIMD_STORE_SHUFFLE(j, fr, simd_r, fi, simd_i, simd_r2, simd_i2, 1);
 		        	}
 		        }
 		        break;
