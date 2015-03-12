@@ -11,7 +11,7 @@
 //number of points
 #define N       (1<<M)
 
-#define DEBUG 1
+//#define DEBUG 1
 
 fixed real[N], imag[N];
 fixed real_org[N], imag_org[N];
@@ -21,11 +21,16 @@ void show_result(fixed* real, fixed* real_org, fixed* imag, fixed* imag_org, int
     int i;
     for (i=0; i<n; i++)
     {
+#ifdef DEBUG
         printf("%d: %d, %d", i, real[i], imag[i]);
         if (real[i] != real_org[i] || imag[i] != imag_org[i]) {
             printf(" expected (%d, %d)", real_org[i], imag_org[i]);
         }
         printf("\n");
+#else
+        if (real[i] != real_org[i] || imag[i] != imag_org[i])
+            printf("got (%d, %d), expected (%d, %d)\n", real[i], imag[i], real_org[i], imag_org[i]);
+#endif
     }
 }
 
@@ -46,25 +51,21 @@ int main()
     scale = fix_fft(real, imag, M, 0);
     scale_org = fix_fft_org(real_org, imag_org, M, 0);
 
-#ifdef DEBUG
     printf("\nFFT\n");
     show_result(real, real_org, imag, imag_org, N);
     if (scale != scale_org) {
     	printf("got scale: %d, expected: %d\n", scale, scale_org);
     }
-#endif
 
     //IFFT
     scale = fix_fft(real, imag, M, 1);
     scale_org = fix_fft_org(real_org, imag_org, M, 1);
 
-#ifdef DEBUG
     printf("\nIFFT\n");
     show_result(real, real_org, imag, imag_org, N);
     if (scale != scale_org) {
     	printf("got scale: %d, expected: %d\n", scale, scale_org);
     }
-#endif
 
     return 0;
 }
