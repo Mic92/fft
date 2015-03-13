@@ -255,16 +255,6 @@ function [63:0] FFT_BUTTERFLY4 ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) 
 	assign FFT_BUTTERFLY4 = FFT_BUTTERFLY(data, wr, wi, shift);
 }
 
-operation FFT_CALC {inout FFT_REG data, in AR i, in BR shift, in BR inverse} {}
-{
-	wire [31:0] twiddle = FFT_TWIDDLE(i, shift, inverse);
-
-	wire [15:0] wr = twiddle[31:16];
-	wire [15:0] wi = twiddle[15:0];
-
-	assign data = FFT_BUTTERFLY1(data, wr, wi, shift);
-}
-
 // first stage: four non-interleaved butterflies
 operation FFT_SIMD_FIRST {inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in BR shift} {}
 {
