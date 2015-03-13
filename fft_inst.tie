@@ -172,7 +172,7 @@ operation FFT_BIT_REVERSE {inout AR m, out AR mr, in AR mm} {}
 	assign m = x;
 }
 
-function [15:0] SIN ([9:0] idx)
+function [15:0] SIN ([9:0] idx, [0:0] not_negate)
 {
 	//wire [7:0] neg_idx = TIEadd(0, ~idx[7:0], 1'b1);
 	wire [8:0] x2 =  TIEadd(8'h0, ~idx[7:0], 1'b1); // 512 - x
@@ -184,7 +184,7 @@ function [15:0] SIN ([9:0] idx)
 	);
 	wire [15:0] value = SIN_WAVE[sin_idx];
 	
-	assign SIN = TIEmux((idx[9:0] == 512) || !idx[9:9],
+	assign SIN = TIEmux(((idx[9:0] == 512) || !idx[9:9] ) && not_negate,
 		TIEadd(0, ~value[15:0], 1'b1),
 		value[15:0]);
 }
@@ -192,17 +192,14 @@ function [15:0] SIN ([9:0] idx)
 function [31:0] FFT_TWIDDLE ([31:0] j, [0:0] shift, [0:0] inverse)
 {
 	// 256 = N_WAVE / 4
-	wire [9:0] idx = TIEadd(j, 256, 1'b0);
+	wire [9:0] cos_idx = TIEadd(j, 256, 1'b0);
 	// 1023 -> 0
-	wire [15:0] sin = SIN(j);
-	wire [15:0] wr1 = SIN(idx);
-		
-	wire [15:0] wi1 = TIEadd(~sin, 16'b0, 1'b1);
-	wire [15:0] wi2 = TIEmux(inverse, wi1, sin);
+	wire [15:0] sin = SIN(j, inverse);
+	wire [15:0] wr1 = SIN(cos_idx, 1);
 
 	assign FFT_TWIDDLE = {
 		TIEmux(shift, wr1, {wr1[15], wr1[15:1]}),
-		TIEmux(shift, wi2, {wi2[15], wi2[15:1]})
+		TIEmux(shift, sin, {sin[15], sin[15:1]})
 	};
 }
 
