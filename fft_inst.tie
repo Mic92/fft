@@ -297,10 +297,10 @@ function [31:0] FFT_INC_SHIFT ([31:0] i, [31:0] x, [31:0] k)
 	assign FFT_INC_SHIFT = FFT_VAR_SHIFT(inc, k);
 }
 
-state FFT_SIMD_K 32 add_read_write
+state FFT_SIMD_K 5 add_read_write
 
 // third stage: four interleaved butterflies
-operation FFT_SIMD_THIRD {inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in AR i, in BR shift, in BR inverse} {in FFT_SIMD_K}
+operation FFT_SIMD_THIRD {in AR i, inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in BR shift, in BR inverse} {in FFT_SIMD_K}
 {
 	wire [31:0] k = FFT_SIMD_K;
 	
@@ -330,33 +330,19 @@ operation FFT_SIMD_THIRD {inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in AR i,
 }
 
 
-//--------------------------------------------------------------------------
-//
-// Immediate Ranges
-//
-//--------------------------------------------------------------------------
+format flix64_0 64 { flix64_0_slot0, flix64_0_slot1, flix64_0_slot2  }
 
-immediate_range ST.FFT_REG_immed2 -32 24 8
-immediate_range LD.FFT_REG_immed2 -32 24 8
-
-//--------------------------------------------------------------------------
-//
-// FLIX Formats and Slots
-//
-// flix64_0, format width 64 bits, 2 slots
-format flix64_0 64 { flix64_0_slot0, flix64_0_slot1, flix64_0_slot2 }
-
-slot_opcodes flix64_0_slot0 { MOVI, S32I, L16SI, ADDX2, S16I, SRAI, FFT_SHIFT_CHECK, OR, FFT_SIMD_LOAD, FFT_SIMD_STORE, SLLI, ADD, L32I, ADDI, FFT_SIMD_LOAD_SHUFFLE, FFT_SIMD_STORE_SHUFFLE }
-slot_opcodes flix64_0_slot1 { SSL, MOVI, ADDI, J, ADDX2, NOP, MOV.N, ADD  }
-slot_opcodes flix64_0_slot2 { NOP, MOVI, ADDX2, L16SI, S16I, FFT_SHIFT_CHECK, FFT_SIMD_LOAD, FFT_SIMD_STORE, S32I, SSL, L32I, FFT_SIMD_LOAD_SHUFFLE, FFT_SIMD_STORE_SHUFFLE, FFT_SIMD_THIRD }
+slot_opcodes flix64_0_slot0 {
+  FFT_SHIFT_CHECK, OR, FFT_SIMD_LOAD, FFT_SIMD_STORE, FFT_SIMD_LOAD_SHUFFLE, FFT_SIMD_STORE_SHUFFLE, FFT_SIMD_THIRD,
+  //	XTENSA ISA OPS - usable without area overead
+  MOVI, SSL, NOP, SLL, BGE, J, ADDI, S32I, ADDX2, L16SI, S16I, BLT, BGEI, ORBC, ANDBC, BBCI, BEQZ.N, ORB, ADDI.N, MOVGEZ, SRAI, OR, BEQZ, L32I.N, BEQI, BNEI, MOVI.N, BLTI, SLLI, ADD.N, MOV.N, ADD, L32I, BNE
+}
+slot_opcodes flix64_0_slot1 { SSL, MOVI, ADDI, J, ADDX2, NOP, MOV.N  }
+slot_opcodes flix64_0_slot2 { NOP, S32I, ADDX2, L16SI, S16I, MOVI, FFT_SHIFT_CHECK, FFT_SIMD_LOAD, FFT_SIMD_STORE, FFT_SIMD_LOAD_SHUFFLE, FFT_SIMD_STORE_SHUFFLE }
 
 //--------------------------------------------------------------------------
 
-//--------------------------------------------------------------------------
-//
-// Ctypes
-//
-//--------------------------------------------------------------------------
-
-ctype FFT_REG 64 64 FFT_REG default
 ctype FFT_REG_SIMD 128 128 FFT_REG_SIMD default
+
+immediate_range st.FFT_REG_SIMD_immed2 -256 240 16
+immediate_range ld.FFT_REG_SIMD_immed2 -256 240 16
