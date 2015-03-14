@@ -124,9 +124,9 @@ operation FFT_SIMD_STORE_SHUFFLE {in AR *base, in AR offset, in FFT_REG_SIMD d1,
 	assign MemDataOut128 = {o5, o6, o7, o8, o1, o2, o3, o4 };
 }
 
-operation FFT_SHIFT_CHECK {in AR *base, in AR offset, out AR needs_shift} {out VAddr, in MemDataIn128}
+operation FFT_SHIFT_CHECK {in AR *addr, in AR offset, out AR needs_shift} {out VAddr, in MemDataIn128}
 {
-	assign VAddr = TIEadd(base, offset[31:1], 1'b0);
+	assign VAddr = TIEadd(addr, offset[31:1], 1'b0);
 
 	wire [15:0] o1 = MemDataIn128[15:0];
 	wire [15:0] o2 = MemDataIn128[31:16];
@@ -149,27 +149,25 @@ operation FFT_SHIFT_CHECK {in AR *base, in AR offset, out AR needs_shift} {out V
 	assign needs_shift = {31'b0, s1 || s2 || s3 || s4 || s5 || s6 || s7 || s8 };
 }
 
-operation FFT_BIT_REVERSE {inout AR m, out AR mr, in AR mm} {}
+operation FFT_BIT_REVERSE {in AR m, in AR mm, out AR mr} {}
 {
-	wire [15:0] x = TIEadd(m, 1'b0, 1'b1);
 	assign mr = {
-		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0]),
-		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1]),
-		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2]),
-		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3]),
-		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4]),
-		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5]),
-		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6]),
-		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7]),
-		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8]),
-		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9]),
-		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10]),
-		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10],x[11]),
-		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10],x[11],x[12]),
-		TIEmux(mm[3:0], 1'b0, 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10],x[11],x[12],x[13]),
-		TIEmux(mm[3:0], 1'b0, x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10],x[11],x[12],x[13],x[14])
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, m[0]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, m[0], m[1]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, m[0], m[1], m[2]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, m[0], m[1], m[2], m[3]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, m[0], m[1], m[2], m[3], m[4]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, m[0], m[1], m[2], m[3], m[4], m[5]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, m[0], m[1], m[2], m[3], m[4], m[5], m[6]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9], m[10]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, 1'b0, m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9], m[10],m[11]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, 1'b0, m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9], m[10],m[11],m[12]),
+		TIEmux(mm[3:0], 1'b0, 1'b0, m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9], m[10],m[11],m[12],m[13]),
+		TIEmux(mm[3:0], 1'b0, m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9], m[10],m[11],m[12],m[13],m[14])
 	};
-	assign m = x;
 }
 
 function [15:0] SIN ([9:0] idx, [0:0] not_negate)
@@ -334,8 +332,8 @@ slot_opcodes flix64_0_slot0 {
   //	XTENSA ISA OPS - usable without area overead
   MOVI, SSL, NOP, SLL, BGE, J, ADDI, S32I, ADDX2, L16SI, S16I, BLT, BGEI, ORBC, ANDBC, BBCI, BEQZ.N, ORB, ADDI.N, MOVGEZ, SRAI, OR, BEQZ, L32I.N, BEQI, BNEI, MOVI.N, BLTI, SLLI, ADD.N, MOV.N, ADD, L32I, BNE
 }
-slot_opcodes flix64_0_slot1 { SSL, MOVI, ADDI, J, ADDX2, NOP, MOV.N  }
-slot_opcodes flix64_0_slot2 { NOP, S32I, ADDX2, L16SI, S16I, MOVI, FFT_SHIFT_CHECK, FFT_SIMD_LOAD, FFT_SIMD_STORE, FFT_SIMD_LOAD_SHUFFLE, FFT_SIMD_STORE_SHUFFLE }
+slot_opcodes flix64_0_slot1 { SSL, MOVI, ADDI, J, ADDX2, NOP, MOV.N, ADD.N }
+slot_opcodes flix64_0_slot2 { NOP, S32I, ADDI, ADDX2, L16SI, S16I, MOVI, FFT_SHIFT_CHECK, FFT_SIMD_LOAD, FFT_SIMD_STORE, FFT_SIMD_LOAD_SHUFFLE, FFT_SIMD_STORE_SHUFFLE }
 
 //--------------------------------------------------------------------------
 

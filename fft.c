@@ -36,78 +36,8 @@
 #include <xtensa/tie/fft_inst.h>
 
 #include <stdio.h>
-#define FLIX
-
-#ifdef FLIX
-#define FLIX_FFT_SIMD_STORE(_fr, _fi, _i, _simd_r, _simd_i) \
-    asm ("{                                    \n" \
-         "    fft_simd_store %1, %0, %2        \n" \
-         "    nop                              \n" \
-         "    fft_simd_store %3, %0, %4        \n" \
-         "}" \
-         :: "r" (_i), "r" (_fr), "r" (_simd_r), "r" (_fi), "r" (_simd_i));
-
-#define FLIX_FFT_SIMD_STORE_SHUFFLE(i, fr, simd_r, simd_r2, fi, simd_i, simd_i2, high) \
-	asm ("{                                                                        \n" \
-	     "    fft_simd_store_shuffle %1, %0, %2, %5, " #high "                     \n" \
-	     "    nop                                                                  \n" \
-	     "    fft_simd_store_shuffle %3, %0, %4, %6, " #high "                     \n" \
-	     "}" \
-	     :: "r" (i), "r" (fr), "r" (simd_r), "r" (fi), "r" (simd_i), "r" (simd_r2), "r" (simd_i2));
-		        		
-#define FLIX_S16I(_p1, _v1, _p2, _v2) \
-	asm ("{                         \n" \
-         "    s16i %1, %0, 0        \n" \
-         "    nop                   \n" \
-         "    s16i %3, %2, 0        \n" \
-         "}" \
-         :: "r" (_p1), "r" (_v1), "r" (_p2), "r" (_v2));
-
-/*#define FLIX_FFT_SIMD_LOAD_SHUFFLE(i, fr, simd_r, simd_r2, fi, simd_i, simd_i2, high) \
-	asm ("{                                                                       \n" \
-	     "    fft_simd_load_shuffle %1, %0, %2, %5, " #high "                     \n" \
-	     "    nop                                                                 \n" \
-	     "    fft_simd_load_shuffle %3, %0, %4, %6, " #high "                     \n" \
-	     "}" \
-	     :: "r" (i), "r" (fr), "r" (simd_r), "r" (fi), "r" (simd_i), "r" (simd_r2), "r" (simd_i2));*/
-
-#define FLIX_FFT_SIMD_THIRD(i, simd_r, simd_r2, j, simd_i, simd_i2, shift, inverse) \
-	do { \
-        int t = i + 4; /* inline me */ \
-		asm ("{                                                                     \n" \
-		     "    fft_simd_third %0, %1, %2, %6, %7                                 \n" \
-		     "    nop                                                               \n" \
-		     "    fft_simd_third %3, %4, %5, %6, %7                                 \n" \
-		     "}" \
-		     :: "r" (i), "r" (simd_r), "r" (simd_r2), "r" (t), "r" (simd_i), "r" (simd_i2), "r" (shift), "r" (inverse)); \
-    } while(0)
-	
-#else
-
-#define FLIX_FFT_SIMD_STORE(_fr, _fi, _i, _simd_r, _simd_i) \
-	FFT_SIMD_STORE(fr, i, simd_r); \
-	FFT_SIMD_STORE(fi, i, simd_i); \
-
-#define FLIX_FFT_SIMD_STORE_SHUFFLE(i, fr, simd_r, simd_r2, fi, simd_i, simd_i2, high) \
-	FFT_SIMD_STORE_SHUFFLE(fr, i, simd_r, simd_r2, high); \
-	FFT_SIMD_STORE_SHUFFLE(fi, i, simd_i, simd_i2, high);
-
-#define FLIX_S16I(_p1, _v1, _p2, _v2) \
-	do { \
-	*(_p1) = (_v1); \
-	*(_p2) = (_v2); \
-	} while(0)
-
-#endif
-
-#define FLIX_FFT_SIMD_LOAD_SHUFFLE(i, fr, simd_r, simd_r2, fi, simd_i, simd_i2, high) \
-	FFT_SIMD_LOAD_SHUFFLE(fr, i, simd_r, simd_r2, high); \
-	FFT_SIMD_LOAD_SHUFFLE(fi, i, simd_i, simd_i2, high);
-
-#define FLIX_FFT_SIMD_THIRD(i, simd_r, simd_r2, simd_i, simd_i2, shift, inverse) \
-	FFT_SIMD_THIRD(i, simd_r,   simd_i, shift, inverse); \
-	FFT_SIMD_THIRD(i + 4, simd_r2, simd_i2, shift, inverse);
-
+#include "fft_flix.h"
+ 
 /*
  *	fix_fft() - perform fast Fourier transform.
  *
@@ -116,44 +46,29 @@
  *	size of data = 2^m
  *  set inverse to 0=dft, 1=idft
  */
-int fix_fft(fixed fr[], fixed fi[], int m, int _inverse)
+
+int fix_fft(fixed fr[], fixed fi[], int size, int _inverse)
 {
-    int mr,nn,i,j,l,k,istep, n, scale;
+    int i, j, l, k, istep, n, m;
     xtbool shift, inverse = _inverse;
     register FFT_REG_SIMD simd_r, simd_i, simd_r2, simd_i2;
 
-    fixed qr, qi;		//even input
-    fixed tr, ti;		//odd input
-    fixed wr, wi;		//twiddle factor
-
     //number of input data
-    n = 1 << m;
-
+    n = 1 << size;
     if(n > N_WAVE) return -1;
-
-    mr = 0;
-    nn = n - 1;
-    scale = 0;
-
-    int mm = m;
+    
+    int scale = 0;
 
     /* decimation in time - re-order data */
-    for (m = 0;;) {
-        FFT_BIT_REVERSE(m, mr, mm);
+   for (m = 1; m < n; m++) {
+       int mr = FFT_BIT_REVERSE(m, size);
 
-        if(m >= nn) break;
-        if(mr <= m) continue;
-
-        tr = fr[m];
-        ti = fi[m];
-        //fixed foo = fi[mr];
-        //fixed bar = fr[mr];
-        
-        fi[m] = fi[mr];
-        fr[m] = fr[mr];     
-        //FLIX_S16I(fi + m, foo, fr + m, bar);
-        
-        FLIX_S16I(fi + mr, ti, fr + mr, tr);
+       if(mr <= m) continue;
+       int ti = fi[m];
+       int tr = fr[m];
+       
+       FLIX_S16I(&fr[m], fr[mr], &fi[m], fi[mr]);
+       FLIX_S16I(&fi[mr], ti, &fr[mr], tr);   
     }
 
     l = 1;
@@ -166,7 +81,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int _inverse)
         	shift = 0;
         	for (i = 0; i < (n / 8); i += 8)
         	{
-        	    if (FFT_SHIFT_CHECK(fr, i) | FFT_SHIFT_CHECK(fi, i))
+        	    if (FFT_SHIFT_CHECK(fr, i) | FFT_SHIFT_CHECK(fi, i))	
         	    {
         	        shift = 1;
         	        ++scale;
@@ -195,7 +110,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int _inverse)
 	        		simd_r = FFT_SIMD_LOAD(fr, i);
 	        		simd_i = FFT_SIMD_LOAD(fi, i);
 	    			FFT_SIMD_FIRST(simd_r, simd_i, shift);
-	    			FLIX_FFT_SIMD_STORE(fr, fi, i, simd_r, simd_i);
+	    			FFT_FLIX_SIMD_STORE(fr, fi, i, simd_r, simd_i);
 	        	}
 	        	break;
 	        
@@ -205,7 +120,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int _inverse)
 	        		simd_r = FFT_SIMD_LOAD(fr, i);
 	        		simd_i = FFT_SIMD_LOAD(fi, i);
 	    			FFT_SIMD_SECOND(simd_r, simd_i, shift, inverse);
-	    			FLIX_FFT_SIMD_STORE(fr, fi, i, simd_r, simd_i);
+	    			FFT_FLIX_SIMD_STORE(fr, fi, i, simd_r, simd_i);
 	        	}
 	        	break;
 	        
@@ -216,7 +131,7 @@ int fix_fft(fixed fr[], fixed fi[], int m, int _inverse)
 	        		simd_r = FFT_SIMD_LOAD(fr, i);
 	        		simd_i = FFT_SIMD_LOAD(fi, i);
 	    			FFT_SIMD_THIRD(i, simd_r, simd_i, shift, inverse);
-	    			FLIX_FFT_SIMD_STORE(fr, fi, i, simd_r, simd_i);
+	    			FFT_FLIX_SIMD_STORE(fr, fi, i, simd_r, simd_i);
 	        	}
 	        	break;
 	        
@@ -224,17 +139,16 @@ int fix_fft(fixed fr[], fixed fi[], int m, int _inverse)
 	        	WUR_FFT_SIMD_K(k);
 		        for (m = 0; m < n; m += istep)
 		        {
-		        	for (i = m; i < m + l; i += 8)
+		        	j = m + l;
+		        	for (i = m; i < m + l;)
 		            {
-		                j = i + l;
+		        		FFT_FLIX_SIMD_LOAD_SHUFFLE(i, fr, simd_r, simd_r2, fi, simd_i, simd_i2, 0);
+		        		FFT_FLIX_SIMD_LOAD_SHUFFLE(j, fr, simd_r, simd_r2, fi, simd_i, simd_i2, 1);
 
-		        		FLIX_FFT_SIMD_LOAD_SHUFFLE(i, fr, simd_r, simd_r2, fi, simd_i, simd_i2, 0);
-		        		FLIX_FFT_SIMD_LOAD_SHUFFLE(j, fr, simd_r, simd_r2, fi, simd_i, simd_i2, 1);
-
-		        		FLIX_FFT_SIMD_THIRD(i, simd_r, simd_r2, simd_i, simd_i2, shift, inverse);
-
-		        		FLIX_FFT_SIMD_STORE_SHUFFLE(i, fr, simd_r, simd_r2, fi, simd_i, simd_i2, 0);        	    
-		        		FLIX_FFT_SIMD_STORE_SHUFFLE(j, fr, simd_r, simd_r2, fi, simd_i, simd_i2, 1);
+		        		FFT_FLIX_SIMD_THIRD(i, simd_r, simd_r2, simd_i, simd_i2, shift, inverse);
+		        		
+		        		// inlines also i++ and j = i + l
+		        		FFT_FLIX_SIMD_STORE_SHUFFLE(i, j, fr, simd_r, simd_r2, fi, simd_i, simd_i2);
 		        	}
 		        }
 		        break;

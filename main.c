@@ -66,7 +66,7 @@ int main()
     if (scale != scale_org) {
     	printf("got scale: %d, expected: %d\n", scale, scale_org);
     }
-
+    
     printf("done\n");
 
     return 0;
