@@ -31,12 +31,12 @@
     Last Modified by Sebastian Haas at Oct. 2014.
 */
 
-#include "fft.h"
+#include "dit.h"
 
-#include <xtensa/tie/fft_inst.h>
+#include <xtensa/tie/dit.h>
 
 #include <stdio.h>
-#include "fft_flix.h"
+#include "dit_flix.h"
  
 /*
  *	fix_fft() - perform fast Fourier transform.
@@ -47,7 +47,7 @@
  *  set inverse to 0=dft, 1=idft
  */
 
-int fix_fft(fixed fr[], fixed fi[], int size, int _inverse)
+int fix_dit_fft(fixed fr[], fixed fi[], int size, int _inverse)
 {
     int i, j, l, k, istep, n, m;
     xtbool shift, inverse = _inverse;
