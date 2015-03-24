@@ -167,10 +167,6 @@ fixed fix_mpy_org(fixed a, fixed b)
     return a;
 }
 
-
-
-
-
 fixed Sinewave_org[1024] = {
       0,    201,    402,    603,    804,   1005,   1206,   1406,
    1607,   1808,   2009,   2209,   2410,   2610,   2811,   3011,

@@ -2,6 +2,7 @@
 
 #include        "fft.h"
 #include        "fft-org.h"
+#include        "dit-fft-org.h"
 #include        <stdio.h>
 #include        <math.h>
 
