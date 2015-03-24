@@ -1,6 +1,6 @@
-#include "dit-fft-org.h"
+#include "dif.h"
 
-int fix_dit_fft_org(fixed fr[], fixed fi[], int m, int inverse)
+int fix_dif_fft(fixed fr[], fixed fi[], int m, int inverse)
 {
     int mr,nn,i,j,l,k,istep, n, scale, shift;
 
@@ -17,9 +17,9 @@ int fix_dit_fft_org(fixed fr[], fixed fi[], int m, int inverse)
     nn = n - 1;
     scale = 0;
 
-    l = 1;
-    k = LOG2_N_WAVE-1;
-    while(l < n)
+    l = n>>1;
+    k = LOG2_N_WAVE-m;
+    while(l > 0)
     {
         if(inverse)
         {
@@ -69,13 +69,12 @@ int fix_dit_fft_org(fixed fr[], fixed fi[], int m, int inverse)
 
             for(i=m; i<n; i+=istep)
             {
-
                 j = i + l;
-                tr = fix_mpy_org(wr,fr[j]) - fix_mpy_org(wi,fi[j]);
-                ti = fix_mpy_org(wr,fi[j]) + fix_mpy_org(wi,fr[j]);
+                tr = fr[i] - fr[j];
+                ti = fi[i] - fi[j];
 
-                qr = fr[i];
-                qi = fi[i];
+                qr = fr[i] + fr[j];
+                qi = fi[i] + fi[j];
 
                 if(shift)
                 {
@@ -83,15 +82,15 @@ int fix_dit_fft_org(fixed fr[], fixed fi[], int m, int inverse)
                         qi >>= 1;
                 }
 
-                fr[j] = qr - tr;
-                fi[j] = qi - ti;
-                fr[i] = qr + tr;
-                fi[i] = qi + ti;
+                fr[i] = qr;
+                fi[i] = qi;
+                fr[j] = fix_mpy_org(wr,tr) - fix_mpy_org(wi,ti);
+                fi[j] = fix_mpy_org(wr,ti) + fix_mpy_org(wi,tr);
             }
         }
 
-        --k;
-        l = istep;
+        ++k;
+        l >>= 1;
     }
     
     /* decimation in frequency - re-order data */

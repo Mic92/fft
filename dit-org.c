@@ -31,7 +31,7 @@
     Last Modified by Sebastian Haas at Oct. 2014.
 */
 
-#include "fft-org.h"
+#include "dit-org.h"
 
 /*
  *	fix_fft() - perform fast Fourier transform.
@@ -41,7 +41,7 @@
  *	size of data = 2^m
  *  set inverse to 0=dft, 1=idft
  */
-int fix_fft_org(fixed fr[], fixed fi[], int m, int inverse)
+int fix_dit_fft_org(fixed fr[], fixed fi[], int m, int inverse)
 {
     int mr,nn,i,j,l,k,istep, n, scale, shift;
 
