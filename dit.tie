@@ -177,7 +177,6 @@ operation FFT_BIT_REVERSE {in AR m, in AR mm, out AR mr} {}
 
 function [15:0] SIN ([9:0] idx, [0:0] not_negate)
 {
-	//wire [7:0] neg_idx = TIEadd(0, ~idx[7:0], 1'b1);
 	wire [8:0] x2 =  TIEadd(8'h0, ~idx[7:0], 1'b1); // 512 - x
 	wire [8:0] sin_idx = TIEmux(idx[8:0] == 256 || !idx[8:8], // if x mod 512 <= 256
 		    // then
@@ -321,7 +320,8 @@ operation FFT_SIMD_THIRD {in AR i, inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi,
 	wire [15:0] wr1 = tw1[31:16];
 	wire [15:0] wi1 = tw1[15:0];
 	
-	wire [31:0] tw2 = FFT_TWIDDLE1(FFT_INC_SHIFT(i, 1, k), shift, inverse);
+	wire [31:0] inc = ADD32(i, 1, 1'b0);
+	wire [31:0] tw2 = FFT_TWIDDLE(FFT_VAR_SHIFT(inc, k), shift, inverse);
 	wire [15:0] wr2 = tw2[31:16];
 	wire [15:0] wi2 = tw2[15:0];
 	
