@@ -1,45 +1,46 @@
 #include "dif.h"
+#include "dit-flix.h"
+#include "dif-flix.h"
 
-int fix_dif_fft(fixed fr[], fixed fi[], int m, int inverse)
+#include <xtensa/tie/dit.h>
+#include <xtensa/tie/dif.h>
+
+
+int fix_dif_fft(fixed fr[], fixed fi[], int size, int _inverse)
 {
-    int mr,nn,i,j,l,k,istep, n, scale, shift;
-
-    fixed qr,qi;		//even input
-    fixed tr,ti;		//odd input
-    fixed wr,wi;		//twiddle factor
+    int i, j, l, k, istep, n, m;
+    xtbool shift, inverse = _inverse;
+    register FFT_REG_SIMD simd_r, simd_i, simd_r2, simd_i2;
+    
+    fixed tr,ti,qr,qi,wr,wi;
 
     //number of input data
-    n = 1<<m;
-
+    n = 1 << size;
     if(n > N_WAVE) return -1;
+    
+    int mr = 0, nn = n - 1;
+    
+    int scale = 0;
 
-    mr = 0;
-    nn = n - 1;
     scale = 0;
 
     l = n>>1;
-    k = LOG2_N_WAVE-m;
+    k = LOG2_N_WAVE-size;
     while(l > 0)
     {
         if(inverse)
         {
             /* variable scaling, depending upon data */
             shift = 0;
-            for(i=0; i<n; ++i)
-            {
-                j = fr[i];
-                if(j < 0) j = -j;
-
-                m = fi[i];
-                if(m < 0) m = -m;
-
-                if(j > 16383 || m > 16383)
-                {
-                    shift = 1;
-                    break;
-                }
-            }
-            if(shift) ++scale;
+        	for (i = 0; i < (n / 8); i += 8)
+        	{
+        	    if (FFT_SHIFT_CHECK(fr, i) | FFT_SHIFT_CHECK(fi, i))	
+        	    {
+        	        shift = 1;
+        	        ++scale;
+        	        break;
+        	    }
+        	}
         }
         else
         {
@@ -53,40 +54,57 @@ int fix_dif_fft(fixed fr[], fixed fi[], int m, int inverse)
         /* it may not be obvious, but the shift will be performed
            on each data point exactly once, during this pass. */
         istep = l << 1;		//step width of current butterfly
-        for(m=0; m<l; ++m)
+        
+        switch(l)
         {
-            j = m << k;
-            /* 0 <= j < N_WAVE/2 */
-            wr =  Sinewave_org[j+N_WAVE/4];
-            wi = -Sinewave_org[j];
+	        case 1:
+	        	for (i = 0; i < n; i += 8)
+	        	{
+	        		simd_r = FFT_SIMD_LOAD(fr, i);
+	        		simd_i = FFT_SIMD_LOAD(fi, i);
+	    			DIF_FFT_SIMD_FIRST(simd_r, simd_i, shift);
+	    			FFT_FLIX_SIMD_STORE(fr, fi, i, simd_r, simd_i);
+	        	}
+	        	break;
+	        
+	        case 2:
+	        	for (i = 0; i < n; i += 8)
+	        	{
+	        		simd_r = FFT_SIMD_LOAD(fr, i);
+	        		simd_i = FFT_SIMD_LOAD(fi, i);
+	        		DIF_FFT_SIMD_SECOND(simd_r, simd_i, shift, inverse);
+	    			FFT_FLIX_SIMD_STORE(fr, fi, i, simd_r, simd_i);
+	        	}
+	        	break;
+	        
+	        case 4:
+	        	WUR_FFT_SIMD_K(7);
+	        	for (i = 0; i < n; i += 8)
+	        	{
+	        		simd_r = FFT_SIMD_LOAD(fr, i);
+	        		simd_i = FFT_SIMD_LOAD(fi, i);
+	        		DIF_FFT_SIMD_THIRD(i, simd_r, simd_i, shift, inverse);
+	    			FFT_FLIX_SIMD_STORE(fr, fi, i, simd_r, simd_i);
+	        	}
+	        	break;
+	        
+	        default:
+	        	WUR_FFT_SIMD_K(k);
+		        for (m = 0; m < n; m += istep)
+		        {
+		        	j = m + l;
+		        	for (i = m; i < m + l;)
+		            {
+		        		FFT_FLIX_SIMD_LOAD_SHUFFLE(i, fr, simd_r, simd_r2, fi, simd_i, simd_i2, 0);
+		        		FFT_FLIX_SIMD_LOAD_SHUFFLE(j, fr, simd_r, simd_r2, fi, simd_i, simd_i2, 1);
 
-            if(inverse) wi = -wi;
-            if(shift)
-            {
-                wr >>= 1;
-                wi >>= 1;
-            }
-
-            for(i=m; i<n; i+=istep)
-            {
-                j = i + l;
-                tr = fr[i] - fr[j];
-                ti = fi[i] - fi[j];
-
-                qr = fr[i] + fr[j];
-                qi = fi[i] + fi[j];
-
-                if(shift)
-                {
-                        qr >>= 1;
-                        qi >>= 1;
-                }
-
-                fr[i] = qr;
-                fi[i] = qi;
-                fr[j] = fix_mpy_org(wr,tr) - fix_mpy_org(wi,ti);
-                fi[j] = fix_mpy_org(wr,ti) + fix_mpy_org(wi,tr);
-            }
+		        		DIF_FFT_FLIX_SIMD_THIRD(i, simd_r, simd_r2, simd_i, simd_i2, shift, inverse);
+		        		
+		        		// inlines also i++ and j = i + l
+		        		FFT_FLIX_SIMD_STORE_SHUFFLE(i, j, fr, simd_r, simd_r2, fi, simd_i, simd_i2);
+		        	}
+		        }
+		        break;
         }
 
         ++k;
@@ -94,22 +112,16 @@ int fix_dif_fft(fixed fr[], fixed fi[], int m, int inverse)
     }
     
     /* decimation in frequency - re-order data */
-    for(m=1; m<=nn; ++m) {
-        l = n;
-        do{
-        	l >>= 1;
-        }while(mr+l > nn);
-        mr = (mr & (l-1)) + l;
+    for (m = 1; m < n; m++) {
+        int mr = FFT_BIT_REVERSE(m, size);
 
         if(mr <= m) continue;
-        tr = fr[m];
-        fr[m] = fr[mr];
-        fr[mr] = tr;
-
-        ti = fi[m];
-        fi[m] = fi[mr];
-        fi[mr] = ti;
-    }
+        int ti = fi[m];
+        int tr = fr[m];
+        
+        FLIX_S16I(&fr[m], fr[mr], &fi[m], fi[mr]);
+        FLIX_S16I(&fi[mr], ti, &fr[mr], tr);   
+     }
 
     return scale;
 }

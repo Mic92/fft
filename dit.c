@@ -1,51 +1,8 @@
-/*  fft.c - Fixed-point Fast Fourier Transform  */
-/*
-    fix_fft()       perform FFT or inverse FFT
-    fix_mpy()       perform fixed-point multiplication.
-    Sinewave[1024]  sinewave normalized to 32767 (= 1.0).
-
-    All data are fixed-point short integers, in which
-    -32768 to +32768 represent -1.0 to +1.0. Integer arithmetic
-    is used for speed, instead of the more natural floating-point.
-
-    For the forward FFT (time -> freq), fixed scaling is
-    performed to prevent arithmetic overflow, and to map a 0dB
-    sine/cosine wave (i.e. amplitude = 32767) to two -6dB freq
-    coefficients; the one in the lower half is reported as 0dB.
-
-    For the inverse FFT (freq -> time), fixed scaling cannot be
-    done, as two 0dB coefficients would sum to a peak amplitude of
-    64K, overflowing the 32k range of the fixed-point integers.
-    Thus, the fix_fft() routine performs variable scaling, and
-    returns a value which is the number of bits LEFT by which
-    the output must be shifted to get the actual amplitude
-    (i.e. if fix_fft() returns 3, each value of fr[] and fi[]
-    must be multiplied by 8 (2^3) for proper scaling.
-    Clearly, this cannot be done within the fixed-point short
-    integers. In practice, if the result is to be used as a
-    filter, the scale_shift can usually be ignored, as the
-    result will be approximately correctly normalized as is.
-
-
-    Source Code taken by http://www.jjj.de/crs4: integer_fft.c
-    Last Modified by Sebastian Haas at Oct. 2014.
-*/
-
 #include "dit.h"
+#include "dit-flix.h"
 
 #include <xtensa/tie/dit.h>
 
-#include <stdio.h>
-#include "dit_flix.h"
- 
-/*
- *	fix_fft() - perform fast Fourier transform.
- *
- *  if n>0 FFT is done, if n<0 inverse FFT is done
- *	fr[n],fi[n] are real,imaginary arrays, INPUT AND RESULT.
- *	size of data = 2^m
- *  set inverse to 0=dft, 1=idft
- */
 
 int fix_dit_fft(fixed fr[], fixed fi[], int size, int _inverse)
 {

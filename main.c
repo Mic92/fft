@@ -15,7 +15,7 @@
 //number of points
 #define N       (1<<M)
 
-#define DEBUG 1
+//#define DEBUG
 
 fixed real[N], imag[N];
 fixed real_org[N], imag_org[N];

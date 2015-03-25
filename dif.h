@@ -1,5 +1,5 @@
-#ifndef FFT_H
-#define FFT_H
+#ifndef DIF_H
+#define DIF_H
 
 /* FIX_MPY() - fixed-point multiplication macro.
    This macro is a statement, not an expression (uses asm).

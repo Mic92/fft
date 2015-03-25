@@ -57,14 +57,14 @@ function [31:0] FFT_VAR_SHIFT([31:0] data, [3:0] sh)
 	);
 }
 
-function [31:0] ADD32([31:0] a, [31:0] b, [0:0] c) slot_shared
+function [31:0] ADD32([31:0] a, [15:0] b) slot_shared
 {
-	assign ADD32 = TIEadd(a, b, c);
+	assign ADD32 = TIEadd(a, b, 1'b0);
 }
 
 operation FFT_SIMD_LOAD {in AR *base, in AR offset, out FFT_REG_SIMD data} {out VAddr, in MemDataIn128}
 {
-	assign VAddr = ADD32(base, {offset[30:0], 1'b0}, 1'b0);
+	assign VAddr = ADD32(base, {offset[30:0], 1'b0});
 
 	wire [15:0] o1 = MemDataIn128[15:0];
 	wire [15:0] o2 = MemDataIn128[31:16];
@@ -80,7 +80,7 @@ operation FFT_SIMD_LOAD {in AR *base, in AR offset, out FFT_REG_SIMD data} {out 
 
 operation FFT_SIMD_STORE {in AR *base, in AR offset, in FFT_REG_SIMD data} {out VAddr, out MemDataOut128}
 {
-	assign VAddr = ADD32(base, {offset[30:0], 1'b0}, 1'b0);
+	assign VAddr = ADD32(base, {offset[30:0], 1'b0});
 
 	wire [15:0] o1 = data[15:0];
 	wire [15:0] o2 = data[31:16];
@@ -98,7 +98,7 @@ immediate_range offset 0 1 1
 
 operation FFT_SIMD_LOAD_SHUFFLE {in AR *base, in AR offset, inout FFT_REG_SIMD d1, inout FFT_REG_SIMD d2, in offset high} {out VAddr, in MemDataIn128}
 {
-	assign VAddr = ADD32(base, {offset[30:0], 1'b0}, 1'b0);
+	assign VAddr = ADD32(base, {offset[30:0], 1'b0});
 
 	wire [15:0] o1 = MemDataIn128[15:0];
 	wire [15:0] o2 = MemDataIn128[31:16];
@@ -115,7 +115,7 @@ operation FFT_SIMD_LOAD_SHUFFLE {in AR *base, in AR offset, inout FFT_REG_SIMD d
 
 operation FFT_SIMD_STORE_SHUFFLE {in AR *base, in AR offset, in FFT_REG_SIMD d1, in FFT_REG_SIMD d2, in offset high} {out VAddr, out MemDataOut128}
 {
-	assign VAddr = ADD32(base, {offset[30:0], 1'b0}, 1'b0);
+	assign VAddr = ADD32(base, {offset[30:0], 1'b0});
 
 	wire [15:0] o1 = TIEmux(high[0:0], d1[79:64],   d1[15:0]);
 	wire [15:0] o2 = TIEmux(high[0:0], d1[95:80],   d1[31:16]);
@@ -131,7 +131,7 @@ operation FFT_SIMD_STORE_SHUFFLE {in AR *base, in AR offset, in FFT_REG_SIMD d1,
 
 operation FFT_SHIFT_CHECK {in AR *addr, in AR offset, out AR needs_shift} {out VAddr, in MemDataIn128}
 {
-	assign VAddr = ADD32(addr, offset[31:1], 1'b0);
+	assign VAddr = ADD32(addr, offset[31:1]);
 
 	wire [15:0] o1 = MemDataIn128[15:0];
 	wire [15:0] o2 = MemDataIn128[31:16];
@@ -206,6 +206,13 @@ function [31:0] FFT_TWIDDLE ([31:0] j, [0:0] shift, [0:0] inverse)
 	};
 }
 
+function [31:0] FFT_TWIDDLE1 ([31:0] j, [0:0] shift, [0:0] inverse) slot_shared {
+	assign FFT_TWIDDLE1 = FFT_TWIDDLE(j, shift, inverse);
+}
+function [31:0] FFT_TWIDDLE2 ([31:0] j, [0:0] shift, [0:0] inverse) slot_shared {
+	assign FFT_TWIDDLE2 = FFT_TWIDDLE(j, shift, inverse);
+}
+
 function [63:0] FFT_BUTTERFLY ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) {
 
 	// operands real parts
@@ -217,28 +224,18 @@ function [63:0] FFT_BUTTERFLY ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) {
 	wire [15:0] i2 = data[15:0];
 
 	// odd real part
-	//wire [31:0] oddr1h, oddr1l, oddr2h, oddr2l;
 	wire [31:0] oddr1 = TIEmul(wr, r2, 1'b1);
-	//assign {oddr1h, oddr1l} = TIEmulpp(wr, r2, 1'b1, 1'b0);
 	wire [15:0] oddr1s = oddr1[30:15];
 	wire [31:0] oddr2 = TIEmul(wi, i2, 1'b1);
-	//assign {oddr2h, oddr2l} = TIEmulpp(wi, i2, 1'b1, 1'b1);
 	wire [15:0] oddr2s = oddr2[30:15];
 	wire [15:0] oddr = TIEaddn(oddr1s, ~oddr2s, 16'b1);
-	//wire [31:0] oddrr = TIEaddn(oddr1h, oddr1l, oddr2h, oddr2l);
-	//wire [15:0] oddr = oddrr[30:15];
 
 	// odd imaginary part
-	//wire [31:0] oddi1h, oddi1l, oddi2h, oddi2l;
 	wire [31:0] oddi1 = TIEmul(wr, i2, 1'b1);
-	//assign {oddi1h, oddi1l} = TIEmulpp(wr, i2, 1'b1, 1'b0);
 	wire [15:0] oddi1s = oddi1[30:15];
 	wire [31:0] oddi2 = TIEmul(wi, r2, 1'b1);
-	//assign {oddi2h, oddi2l} = TIEmulpp(wi, r2, 1'b1, 1'b0);
 	wire [15:0] oddi2s = oddi2[30:15];
 	wire [15:0] oddi = TIEaddn(oddi1s, oddi2s, 16'b0);
-	//wire [31:0] oddii = TIEaddn(oddi1h, oddi1l, oddi2h, oddi2l);
-	//wire [15:0] oddi = oddii[30:15];
 	
 	// even parts
 	wire [15:0] evenr = TIEmux(shift[0], r1, {r1[15], r1[15:1]});
@@ -252,17 +249,11 @@ function [63:0] FFT_BUTTERFLY ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) {
 
 	assign FFT_BUTTERFLY = { resr1, resr2, resi1, resi2 };
 }
-function [63:0] FFT_BUTTERFLY1 ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) shared {
+function [63:0] FFT_BUTTERFLY1 ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) slot_shared {
 	assign FFT_BUTTERFLY1 = FFT_BUTTERFLY(data, wr, wi, shift);
 }
-function [63:0] FFT_BUTTERFLY2 ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) shared {
+function [63:0] FFT_BUTTERFLY2 ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) slot_shared {
 	assign FFT_BUTTERFLY2 = FFT_BUTTERFLY(data, wr, wi, shift);
-}
-function [63:0] FFT_BUTTERFLY3 ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) shared {
-	assign FFT_BUTTERFLY3 = FFT_BUTTERFLY(data, wr, wi, shift);
-}
-function [63:0] FFT_BUTTERFLY4 ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) shared {
-	assign FFT_BUTTERFLY4 = FFT_BUTTERFLY(data, wr, wi, shift);
 }
 
 // first stage: four non-interleaved butterflies
@@ -273,12 +264,18 @@ operation FFT_SIMD_FIRST {inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in BR sh
 	wire [15:0] wi = 16'b0;
 
 	wire [63:0] res1 = FFT_BUTTERFLY1({fr[127:96], fi[127:96]}, wr, wi, shift);
-	wire [63:0] res2 = FFT_BUTTERFLY2({fr[95:64],  fi[95:64]},  wr, wi, shift);
-	wire [63:0] res3 = FFT_BUTTERFLY3({fr[63:32],  fi[63:32]},  wr, wi, shift);
-	wire [63:0] res4 = FFT_BUTTERFLY4({fr[31:0],   fi[31:0]},   wr, wi, shift);
+	wire [63:0] res2 = FFT_BUTTERFLY1({fr[95:64],  fi[95:64]},  wr, wi, shift);
+	wire [63:0] res3 = FFT_BUTTERFLY2({fr[63:32],  fi[63:32]},  wr, wi, shift);
+	wire [63:0] res4 = FFT_BUTTERFLY2({fr[31:0],   fi[31:0]},   wr, wi, shift);
 
 	assign fr = { res1[63:32], res2[63:32], res3[63:32], res4[63:32] };
 	assign fi = { res1[31:0],  res2[31:0],  res3[31:0],  res4[31:0] };
+}
+
+schedule FFT_SIMD_FIRST_schedule {FFT_SIMD_FIRST}
+{
+	def fr 2;
+	def fi 2;
 }
 
 // second stage: four butterflies, two interleaved at a time
@@ -293,12 +290,18 @@ operation FFT_SIMD_SECOND {inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in BR s
 	wire [15:0] wi2 = TIEmux({inverse, shift}, 16'h8001, 16'hc000, 16'h7fff, 16'h3fff);
 	
 	wire [63:0] res1 = FFT_BUTTERFLY1({fr[127:112], fr[95:80], fi[127:112], fi[95:80]}, wr1, wi1, shift);
-	wire [63:0] res2 = FFT_BUTTERFLY2({fr[111:96],  fr[79:64], fi[111:96],  fi[79:64]}, wr2, wi2, shift);
-	wire [63:0] res3 = FFT_BUTTERFLY3({fr[63:48],   fr[31:16], fi[63:48],   fi[31:16]}, wr1, wi1, shift);
-	wire [63:0] res4 = FFT_BUTTERFLY4({fr[47:32],   fr[15:0],  fi[47:32],   fi[15:0]},  wr2, wi2, shift);
+	wire [63:0] res2 = FFT_BUTTERFLY1({fr[111:96],  fr[79:64], fi[111:96],  fi[79:64]}, wr2, wi2, shift);
+	wire [63:0] res3 = FFT_BUTTERFLY2({fr[63:48],   fr[31:16], fi[63:48],   fi[31:16]}, wr1, wi1, shift);
+	wire [63:0] res4 = FFT_BUTTERFLY2({fr[47:32],   fr[15:0],  fi[47:32],   fi[15:0]},  wr2, wi2, shift);
 	
 	assign fr = { res1[63:48], res2[63:48], res1[47:32], res2[47:32], res3[63:48], res4[63:48], res3[47:32], res4[47:32] };
 	assign fi = { res1[31:16], res2[31:16], res1[15:0],  res2[15:0],  res3[31:16], res4[31:16], res3[15:0],  res4[15:0] };
+}
+
+schedule FFT_SIMD_SECOND_schedule {FFT_SIMD_SECOND}
+{
+	def fr 2;
+	def fi 2;
 }
 
 function [31:0] FFT_INC_SHIFT ([31:0] i, [31:0] x, [31:0] k)
@@ -314,41 +317,37 @@ operation FFT_SIMD_THIRD {in AR i, inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi,
 {
 	wire [31:0] k = FFT_SIMD_K;
 	
-	wire [31:0] tw1 = FFT_TWIDDLE(FFT_VAR_SHIFT(i, k), shift, inverse);
+	wire [31:0] tw1 = FFT_TWIDDLE1(FFT_VAR_SHIFT(i, k), shift, inverse);
 	wire [15:0] wr1 = tw1[31:16];
 	wire [15:0] wi1 = tw1[15:0];
 	
-	wire [31:0] tw2 = FFT_TWIDDLE(FFT_INC_SHIFT(i, 1, k), shift, inverse);
+	wire [31:0] tw2 = FFT_TWIDDLE1(FFT_INC_SHIFT(i, 1, k), shift, inverse);
 	wire [15:0] wr2 = tw2[31:16];
 	wire [15:0] wi2 = tw2[15:0];
 	
-	wire [31:0] tw3 = FFT_TWIDDLE(FFT_INC_SHIFT(i, 2, k), shift, inverse);
+	wire [31:0] tw3 = FFT_TWIDDLE2(FFT_INC_SHIFT(i, 2, k), shift, inverse);
 	wire [15:0] wr3 = tw3[31:16];
 	wire [15:0] wi3 = tw3[15:0];
 	
-	wire [31:0] tw4 = FFT_TWIDDLE(FFT_INC_SHIFT(i, 3, k), shift, inverse);
+	wire [31:0] tw4 = FFT_TWIDDLE2(FFT_INC_SHIFT(i, 3, k), shift, inverse);
 	wire [15:0] wr4 = tw4[31:16];
 	wire [15:0] wi4 = tw4[15:0];
 	
 	wire [63:0] res1 = FFT_BUTTERFLY1({fr[127:112], fr[63:48], fi[127:112], fi[63:48]}, wr1, wi1, shift);
-	wire [63:0] res2 = FFT_BUTTERFLY2({fr[111:96],  fr[47:32], fi[111:96],  fi[47:32]}, wr2, wi2, shift);
-	wire [63:0] res3 = FFT_BUTTERFLY3({fr[95:80],   fr[31:16], fi[95:80],   fi[31:16]}, wr3, wi3, shift);
-	wire [63:0] res4 = FFT_BUTTERFLY4({fr[79:64],   fr[15:0],  fi[79:64],   fi[15:0]},  wr4, wi4, shift);
+	wire [63:0] res2 = FFT_BUTTERFLY1({fr[111:96],  fr[47:32], fi[111:96],  fi[47:32]}, wr2, wi2, shift);
+	wire [63:0] res3 = FFT_BUTTERFLY2({fr[95:80],   fr[31:16], fi[95:80],   fi[31:16]}, wr3, wi3, shift);
+	wire [63:0] res4 = FFT_BUTTERFLY2({fr[79:64],   fr[15:0],  fi[79:64],   fi[15:0]},  wr4, wi4, shift);
 	
 	assign fr = { res1[63:48], res2[63:48], res3[63:48], res4[63:48], res1[47:32], res2[47:32], res3[47:32], res4[47:32] };
 	assign fi = { res1[31:16], res2[31:16], res3[31:16], res4[31:16], res1[15:0],  res2[15:0],  res3[15:0],  res4[15:0] };
 }
 
-
-format flix64_0 64 { flix64_0_slot0, flix64_0_slot1, flix64_0_slot2  }
-
-slot_opcodes flix64_0_slot0 {
-  FFT_SHIFT_CHECK, OR, FFT_SIMD_LOAD, FFT_SIMD_STORE, FFT_SIMD_LOAD_SHUFFLE, FFT_SIMD_STORE_SHUFFLE, FFT_SIMD_THIRD,
-  //	XTENSA ISA OPS - usable without area overead
-  MOVI, SSL, NOP, SLL, BGE, J, ADDI, S32I, ADDX2, L16SI, S16I, BLT, BGEI, ORBC, ANDBC, BBCI, BEQZ.N, ORB, ADDI.N, MOVGEZ, SRAI, OR, BEQZ, L32I.N, BEQI, BNEI, MOVI.N, BLTI, SLLI, ADD.N, MOV.N, ADD, L32I, BNE
+schedule FFT_SIMD_THIRD_schedule {FFT_SIMD_THIRD}
+{
+	def fr 2;
+	def fi 2;
 }
-slot_opcodes flix64_0_slot1 { SSL, MOVI, ADDI, J, ADDX2, NOP, MOV.N, ADD.N }
-slot_opcodes flix64_0_slot2 { NOP, S32I, ADDI, ADDX2, L16SI, S16I, MOVI, FFT_SHIFT_CHECK, FFT_SIMD_LOAD, FFT_SIMD_STORE, FFT_SIMD_LOAD_SHUFFLE, FFT_SIMD_STORE_SHUFFLE }
+
 
 //--------------------------------------------------------------------------
 
