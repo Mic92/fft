@@ -109,22 +109,22 @@ operation FFT_SIMD_LOAD_SHUFFLE {in AR *base, in AR offset, inout FFT_REG_SIMD d
 	wire [15:0] o7 = MemDataIn128[111:96];
 	wire [15:0] o8 = MemDataIn128[127:112];
 
-	assign d1 = TIEmux(high[0:0], {o1, o2, o3, o4, d1[63:0]}, {d1[127:64], o1, o2, o3, o4});
-	assign d2 = TIEmux(high[0:0], {o5, o6, o7, o8, d2[63:0]}, {d2[127:64], o5, o6, o7, o8});
+	assign d1 = TIEmux(high[0], {o1, o2, o3, o4, d1[63:0]}, {d1[127:64], o1, o2, o3, o4});
+	assign d2 = TIEmux(high[0], {o5, o6, o7, o8, d2[63:0]}, {d2[127:64], o5, o6, o7, o8});
 }
 
 operation FFT_SIMD_STORE_SHUFFLE {in AR *base, in AR offset, in FFT_REG_SIMD d1, in FFT_REG_SIMD d2, in offset high} {out VAddr, out MemDataOut128}
 {
 	assign VAddr = ADD32(base, {offset[30:0], 1'b0});
 
-	wire [15:0] o1 = TIEmux(high[0:0], d1[79:64],   d1[15:0]);
-	wire [15:0] o2 = TIEmux(high[0:0], d1[95:80],   d1[31:16]);
-	wire [15:0] o3 = TIEmux(high[0:0], d1[111:96],  d1[47:32]);
-	wire [15:0] o4 = TIEmux(high[0:0], d1[127:112], d1[63:48]);
-	wire [15:0] o5 = TIEmux(high[0:0], d2[79:64],   d2[15:0]);
-	wire [15:0] o6 = TIEmux(high[0:0], d2[95:80],   d2[31:16]);
-	wire [15:0] o7 = TIEmux(high[0:0], d2[111:96],  d2[47:32]);
-	wire [15:0] o8 = TIEmux(high[0:0], d2[127:112], d2[63:48]);
+	wire [15:0] o1 = TIEmux(high[0], d1[79:64],   d1[15:0]);
+	wire [15:0] o2 = TIEmux(high[0], d1[95:80],   d1[31:16]);
+	wire [15:0] o3 = TIEmux(high[0], d1[111:96],  d1[47:32]);
+	wire [15:0] o4 = TIEmux(high[0], d1[127:112], d1[63:48]);
+	wire [15:0] o5 = TIEmux(high[0], d2[79:64],   d2[15:0]);
+	wire [15:0] o6 = TIEmux(high[0], d2[95:80],   d2[31:16]);
+	wire [15:0] o7 = TIEmux(high[0], d2[111:96],  d2[47:32]);
+	wire [15:0] o8 = TIEmux(high[0], d2[127:112], d2[63:48]);
 
 	assign MemDataOut128 = {o5, o6, o7, o8, o1, o2, o3, o4 };
 }
@@ -177,6 +177,7 @@ operation FFT_BIT_REVERSE {in AR m, in AR mm, out AR mr} {}
 
 function [15:0] SIN ([9:0] idx, [0:0] not_negate)
 {
+	//wire [7:0] neg_idx = TIEadd(0, ~idx[7:0], 1'b1);
 	wire [8:0] x2 =  TIEadd(8'h0, ~idx[7:0], 1'b1); // 512 - x
 	wire [8:0] sin_idx = TIEmux(idx[8:0] == 256 || !idx[8:8], // if x mod 512 <= 256
 		    // then
@@ -191,8 +192,11 @@ function [15:0] SIN ([9:0] idx, [0:0] not_negate)
 		value[15:0]);
 }
 
-function [31:0] FFT_TWIDDLE ([31:0] j, [0:0] shift, [0:0] inverse)
+function [31:0] FFT_TWIDDLE ([31:0] i, [1:0] x, [4:0] k, [0:0] shift, [0:0] inverse)
 {
+	wire [31:0] inc = TIEadd(i, x, 1'b0);
+	wire [31:0] j = FFT_VAR_SHIFT(inc, k);
+	
 	// 256 = N_WAVE / 4
 	wire [9:0] cos_idx = TIEadd(j, 256, 1'b0);
 	// 1023 -> 0
@@ -205,11 +209,11 @@ function [31:0] FFT_TWIDDLE ([31:0] j, [0:0] shift, [0:0] inverse)
 	};
 }
 
-function [31:0] FFT_TWIDDLE1 ([31:0] j, [0:0] shift, [0:0] inverse) slot_shared {
-	assign FFT_TWIDDLE1 = FFT_TWIDDLE(j, shift, inverse);
+function [31:0] FFT_TWIDDLE1 ([31:0] i, [1:0] x, [4:0] k, [0:0] shift, [0:0] inverse) slot_shared {
+	assign FFT_TWIDDLE1 = FFT_TWIDDLE(i, x, k, shift, inverse);
 }
-function [31:0] FFT_TWIDDLE2 ([31:0] j, [0:0] shift, [0:0] inverse) slot_shared {
-	assign FFT_TWIDDLE2 = FFT_TWIDDLE(j, shift, inverse);
+function [31:0] FFT_TWIDDLE2 ([31:0] i, [1:0] x, [4:0] k, [0:0] shift, [0:0] inverse) slot_shared {
+	assign FFT_TWIDDLE2 = FFT_TWIDDLE(i, x, k, shift, inverse);
 }
 
 function [63:0] FFT_BUTTERFLY ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) {
@@ -224,17 +228,13 @@ function [63:0] FFT_BUTTERFLY ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) {
 
 	// odd real part
 	wire [31:0] oddr1 = TIEmul(wr, r2, 1'b1);
-	wire [15:0] oddr1s = oddr1[30:15];
 	wire [31:0] oddr2 = TIEmul(wi, i2, 1'b1);
-	wire [15:0] oddr2s = oddr2[30:15];
-	wire [15:0] oddr = TIEaddn(oddr1s, ~oddr2s, 16'b1);
+	wire [15:0] oddr = TIEaddn(oddr1[30:15], ~oddr2[30:15], 16'b1);
 
 	// odd imaginary part
 	wire [31:0] oddi1 = TIEmul(wr, i2, 1'b1);
-	wire [15:0] oddi1s = oddi1[30:15];
 	wire [31:0] oddi2 = TIEmul(wi, r2, 1'b1);
-	wire [15:0] oddi2s = oddi2[30:15];
-	wire [15:0] oddi = TIEaddn(oddi1s, oddi2s, 16'b0);
+	wire [15:0] oddi = TIEadd(oddi1[30:15], oddi2[30:15], 1'b0);
 	
 	// even parts
 	wire [15:0] evenr = TIEmux(shift[0], r1, {r1[15], r1[15:1]});
@@ -303,7 +303,7 @@ schedule FFT_SIMD_SECOND_schedule {FFT_SIMD_SECOND}
 	def fi 2;
 }
 
-function [31:0] FFT_INC_SHIFT ([31:0] i, [31:0] x, [31:0] k)
+function [31:0] FFT_INC_SHIFT ([31:0] i, [1:0] x, [4:0] k)
 {
 	wire [31:0] inc = TIEadd(i, x, 1'b0);
 	assign FFT_INC_SHIFT = FFT_VAR_SHIFT(inc, k);
@@ -314,22 +314,21 @@ state FFT_SIMD_K 5 add_read_write
 // third stage: four interleaved butterflies
 operation FFT_SIMD_THIRD {in AR i, inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in BR shift, in BR inverse} {in FFT_SIMD_K}
 {
-	wire [31:0] k = FFT_SIMD_K;
+	wire [4:0] k = FFT_SIMD_K;
 	
-	wire [31:0] tw1 = FFT_TWIDDLE1(FFT_VAR_SHIFT(i, k), shift, inverse);
+	wire [31:0] tw1 = FFT_TWIDDLE1(i, 0, k, shift, inverse);
 	wire [15:0] wr1 = tw1[31:16];
 	wire [15:0] wi1 = tw1[15:0];
 	
-	wire [31:0] inc = ADD32(i, 1, 1'b0);
-	wire [31:0] tw2 = FFT_TWIDDLE(FFT_VAR_SHIFT(inc, k), shift, inverse);
+	wire [31:0] tw2 = FFT_TWIDDLE1(i, 1, k, shift, inverse);
 	wire [15:0] wr2 = tw2[31:16];
 	wire [15:0] wi2 = tw2[15:0];
 	
-	wire [31:0] tw3 = FFT_TWIDDLE2(FFT_INC_SHIFT(i, 2, k), shift, inverse);
+	wire [31:0] tw3 = FFT_TWIDDLE2(i, 2, k, shift, inverse);
 	wire [15:0] wr3 = tw3[31:16];
 	wire [15:0] wi3 = tw3[15:0];
 	
-	wire [31:0] tw4 = FFT_TWIDDLE2(FFT_INC_SHIFT(i, 3, k), shift, inverse);
+	wire [31:0] tw4 = FFT_TWIDDLE2(i, 3, k, shift, inverse);
 	wire [15:0] wr4 = tw4[31:16];
 	wire [15:0] wi4 = tw4[15:0];
 	

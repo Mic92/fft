@@ -1,0 +1,134 @@
+function [63:0] DIF_FFT_BUTTERFLY ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) {
+
+	// operands real parts
+	wire [15:0] r1 = data[63:48];
+	wire [15:0] r2 = data[47:32];
+
+	// operands imaginary parts
+	wire [15:0] i1 = data[31:16];
+	wire [15:0] i2 = data[15:0];
+	
+	wire [15:0] tr = TIEadd(r1, ~r2, 1'b1);
+	wire [15:0] ti = TIEadd(i1, ~i2, 1'b1);
+	
+	wire [15:0] qr0 = TIEadd(r1,  r2, 1'b0);
+	wire [15:0] qi0 = TIEadd(i1,  i2, 1'b0);
+	wire [15:0] qr = TIEmux(shift[0], qr0, {qr0[15], qr0[15:1]});
+	wire [15:0] qi = TIEmux(shift[0], qi0, {qi0[15], qi0[15:1]});
+	
+	wire [31:0] a = TIEmul(wr, tr, 1'b1);
+	wire [31:0] b = TIEmul(wi, ti, 1'b1);
+	wire [31:0] c = TIEmul(wr, ti, 1'b1);
+	wire [31:0] d = TIEmul(wi, tr, 1'b1);
+
+	// final result
+	wire [15:0] resr1 = qr;
+	wire [15:0] resi1 = qi;
+	wire [15:0] resr2 = TIEadd(a[30:15], ~b[30:15], 1'b1);
+	wire [15:0] resi2 = TIEadd(c[30:15],  d[30:15], 1'b0);
+
+	assign DIF_FFT_BUTTERFLY = { resr1, resr2, resi1, resi2 };
+}
+
+function [63:0] DIF_FFT_BUTTERFLY1 ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) slot_shared {
+	assign DIF_FFT_BUTTERFLY1 = DIF_FFT_BUTTERFLY(data, wr, wi, shift);
+}
+function [63:0] DIF_FFT_BUTTERFLY2 ([63:0] data, [15:0] wr, [15:0] wi, [0:0] shift) slot_shared {
+	assign DIF_FFT_BUTTERFLY2 = DIF_FFT_BUTTERFLY(data, wr, wi, shift);
+}
+
+// first stage: four non-interleaved butterflies
+operation DIF_FFT_SIMD_FIRST {inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in BR shift} {}
+{
+	// 1
+	wire [15:0] wr = TIEmux(shift, 16'h7fff, 16'h3fff);
+	wire [15:0] wi = 16'b0;
+
+	wire [63:0] res1 = DIF_FFT_BUTTERFLY1({fr[127:96], fi[127:96]}, wr, wi, shift);
+	wire [63:0] res2 = DIF_FFT_BUTTERFLY1({fr[95:64],  fi[95:64]},  wr, wi, shift);
+	wire [63:0] res3 = DIF_FFT_BUTTERFLY2({fr[63:32],  fi[63:32]},  wr, wi, shift);
+	wire [63:0] res4 = DIF_FFT_BUTTERFLY2({fr[31:0],   fi[31:0]},   wr, wi, shift);
+
+	assign fr = { res1[63:32], res2[63:32], res3[63:32], res4[63:32] };
+	assign fi = { res1[31:0],  res2[31:0],  res3[31:0],  res4[31:0] };
+}
+
+schedule DIF_FFT_SIMD_FIRST_schedule {DIF_FFT_SIMD_FIRST}
+{
+	def fr 2;
+	def fi 2;
+}
+
+// second stage: four butterflies, two interleaved at a time
+operation DIF_FFT_SIMD_SECOND {inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in BR shift, in BR inverse} {}
+{
+	// 1
+	wire [15:0] wr1 = TIEmux(shift, 16'h7fff, 16'h3fff);
+	wire [15:0] wi1 = 16'b0;
+	
+	// -j
+	wire [15:0] wr2 = 16'b0;
+	wire [15:0] wi2 = TIEmux({inverse, shift}, 16'h8001, 16'hc000, 16'h7fff, 16'h3fff);
+	
+	wire [63:0] res1 = DIF_FFT_BUTTERFLY1({fr[127:112], fr[95:80], fi[127:112], fi[95:80]}, wr1, wi1, shift);
+	wire [63:0] res2 = DIF_FFT_BUTTERFLY1({fr[111:96],  fr[79:64], fi[111:96],  fi[79:64]}, wr2, wi2, shift);
+	wire [63:0] res3 = DIF_FFT_BUTTERFLY2({fr[63:48],   fr[31:16], fi[63:48],   fi[31:16]}, wr1, wi1, shift);
+	wire [63:0] res4 = DIF_FFT_BUTTERFLY2({fr[47:32],   fr[15:0],  fi[47:32],   fi[15:0]},  wr2, wi2, shift);
+	
+	assign fr = { res1[63:48], res2[63:48], res1[47:32], res2[47:32], res3[63:48], res4[63:48], res3[47:32], res4[47:32] };
+	assign fi = { res1[31:16], res2[31:16], res1[15:0],  res2[15:0],  res3[31:16], res4[31:16], res3[15:0],  res4[15:0] };
+}
+
+schedule DIF_FFT_SIMD_SECOND_schedule {DIF_FFT_SIMD_SECOND}
+{
+	def fr 2;
+	def fi 2;
+}
+
+// third stage: four interleaved butterflies
+operation DIF_FFT_SIMD_THIRD {in AR i, inout FFT_REG_SIMD fr, inout FFT_REG_SIMD fi, in BR shift, in BR inverse} {in FFT_SIMD_K}
+{
+	wire [31:0] k = FFT_SIMD_K;
+	
+	wire [31:0] tw1 = FFT_TWIDDLE1(i, 0, k, shift, inverse);
+	wire [15:0] wr1 = tw1[31:16];
+	wire [15:0] wi1 = tw1[15:0];
+	
+	wire [31:0] tw2 = FFT_TWIDDLE1(i, 1, k, shift, inverse);
+	wire [15:0] wr2 = tw2[31:16];
+	wire [15:0] wi2 = tw2[15:0];
+	
+	wire [31:0] tw3 = FFT_TWIDDLE2(i, 2, k, shift, inverse);
+	wire [15:0] wr3 = tw3[31:16];
+	wire [15:0] wi3 = tw3[15:0];
+	
+	wire [31:0] tw4 = FFT_TWIDDLE2(i, 3, k, shift, inverse);
+	wire [15:0] wr4 = tw4[31:16];
+	wire [15:0] wi4 = tw4[15:0];
+	
+	wire [63:0] res1 = DIF_FFT_BUTTERFLY1({fr[127:112], fr[63:48], fi[127:112], fi[63:48]}, wr1, wi1, shift);
+	wire [63:0] res2 = DIF_FFT_BUTTERFLY1({fr[111:96],  fr[47:32], fi[111:96],  fi[47:32]}, wr2, wi2, shift);
+	wire [63:0] res3 = DIF_FFT_BUTTERFLY2({fr[95:80],   fr[31:16], fi[95:80],   fi[31:16]}, wr3, wi3, shift);
+	wire [63:0] res4 = DIF_FFT_BUTTERFLY2({fr[79:64],   fr[15:0],  fi[79:64],   fi[15:0]},  wr4, wi4, shift);
+	
+	assign fr = { res1[63:48], res2[63:48], res3[63:48], res4[63:48], res1[47:32], res2[47:32], res3[47:32], res4[47:32] };
+	assign fi = { res1[31:16], res2[31:16], res3[31:16], res4[31:16], res1[15:0],  res2[15:0],  res3[15:0],  res4[15:0] };
+}
+
+schedule DIF_FFT_SIMD_THIRD_schedule {DIF_FFT_SIMD_THIRD}
+{
+	def fr 2;
+	def fi 2;
+}
+
+
+
+format flix64_0 64 { flix64_0_slot0, flix64_0_slot1, flix64_0_slot2  }
+
+slot_opcodes flix64_0_slot0 {
+  FFT_SHIFT_CHECK, OR, FFT_SIMD_LOAD, FFT_SIMD_STORE, FFT_SIMD_LOAD_SHUFFLE, FFT_SIMD_STORE_SHUFFLE, FFT_SIMD_THIRD, DIF_FFT_SIMD_THIRD,
+  //	XTENSA ISA OPS - usable without area overead
+  MOVI, SSL, NOP, SLL, BGE, J, ADDI, S32I, ADDX2, L16SI, S16I, BLT, BGEI, ORBC, ANDBC, BBCI, BEQZ.N, ORB, ADDI.N, MOVGEZ, SRAI, OR, BEQZ, L32I.N, BEQI, BNEI, MOVI.N, BLTI, SLLI, ADD.N, MOV.N, ADD, L32I, BNE
+}
+slot_opcodes flix64_0_slot1 { SSL, MOVI, ADDI, J, ADDX2, NOP, MOV.N, ADD.N }
+slot_opcodes flix64_0_slot2 { NOP, S32I, ADDI, ADDX2, L16SI, S16I, MOVI, FFT_SHIFT_CHECK, FFT_SIMD_LOAD, FFT_SIMD_STORE, FFT_SIMD_LOAD_SHUFFLE, FFT_SIMD_STORE_SHUFFLE }
